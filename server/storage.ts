@@ -1,4 +1,10 @@
-import { type Module, type InsertModule, type UpdateModuleProgress, type MarkModuleComplete } from "@shared/schema";
+import { type Module, type InsertModule, type UpdateModuleProgress, type MarkModuleComplete, modules } from "@shared/schema";
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
+import { eq } from "drizzle-orm";
+
+const sql = neon(process.env.DATABASE_URL!);
+const db = drizzle(sql);
 
 export interface IStorage {
   getAllModules(): Promise<Module[]>;
@@ -205,4 +211,37 @@ Duración estimada: 8 horas de estudio`,
   }
 }
 
-export const storage = new MemStorage();
+export class DbStorage implements IStorage {
+  async getAllModules(): Promise<Module[]> {
+    const result = await db.select().from(modules).orderBy(modules.number);
+    return result;
+  }
+
+  async getModuleById(id: string): Promise<Module | undefined> {
+    const result = await db.select().from(modules).where(eq(modules.id, id));
+    return result[0];
+  }
+
+  async updateModuleProgress(id: string, data: UpdateModuleProgress): Promise<Module | undefined> {
+    const result = await db
+      .update(modules)
+      .set({ progress: data.progress })
+      .where(eq(modules.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async markModuleComplete(id: string, data: MarkModuleComplete): Promise<Module | undefined> {
+    const result = await db
+      .update(modules)
+      .set({ 
+        completed: data.completed,
+        progress: data.completed ? 100 : undefined 
+      })
+      .where(eq(modules.id, id))
+      .returning();
+    return result[0];
+  }
+}
+
+export const storage = new DbStorage();
