@@ -1,8 +1,13 @@
 import express, { type Request, Response, NextFunction } from "express";
+import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Servir archivos estáticos desde attached_assets
+app.use('/generated_images', express.static(path.join(import.meta.dirname, '..', 'attached_assets', 'generated_images')));
+app.use('/pdfs', express.static(path.join(import.meta.dirname, '..', 'attached_assets', 'pdfs')));
 
 declare module 'http' {
   interface IncomingMessage {

@@ -14,6 +14,20 @@ export const modules = pgTable("modules", {
   completed: boolean("completed").notNull().default(false),
 });
 
+export const sections = pgTable("sections", {
+  id: varchar("id").primaryKey(),
+  moduleId: varchar("module_id").notNull().references(() => modules.id),
+  type: varchar("type", { enum: ["diagnostic", "presentation", "infographic", "data", "evaluation"] }).notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  pdfUrl: text("pdf_url"),
+  order: integer("order").notNull(),
+  completed: boolean("completed").notNull().default(false),
+});
+
+export type Section = typeof sections.$inferSelect;
+export type InsertSection = typeof sections.$inferInsert;
+
 export const insertModuleSchema = createInsertSchema(modules).omit({
   id: true,
 });

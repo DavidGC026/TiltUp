@@ -1,0 +1,88 @@
+=== ESTRUCTURA DEL PROYECTO LISTO PARA PRODUCCIÓN ===
+
+📦 TiltUpLearn/
+│
+├── 📁 php-backend/                    ✅ BACKEND PHP LISTO
+│   ├── config/
+│   │   └── db.php                    ✅ Configuración MySQL (editar credenciales)
+│   ├── api/
+│   │   ├── modules.php               ✅ Endpoints de módulos
+│   │   └── sections.php              ✅ Endpoints de secciones
+│   ├── uploads/
+│   │   ├── pdfs/
+│   │   │   └── modulo1/              ✅ PDFs cargados
+│   │   └── images/
+│   └── schema.sql                    ✅ SQL ejecutado (4 módulos, 5 secciones)
+│
+├── 📁 client/                         ✅ FRONTEND REACT
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Home.tsx
+│   │   │   └── ModuleDetail.tsx
+│   │   ├── components/
+│   │   │   └── SectionCard.tsx        ✅ Componente de secciones
+│   │   └── lib/queryClient.ts         ⚠️  NECESITA URL de API actualizada
+│   ├── dist/                          ⚠️  Generar con: npm run build
+│   └── package.json
+│
+├── 📁 attached_assets/
+│   ├── generated_images/              ✅ 4 imágenes optimizadas (reduce 60-70%)
+│   └── pdfs/
+│       └── modulo1/                   ✅ 3 PDFs listos
+│
+├── 📄 DEPLOY.md                       ✅ Guía completa para Hostinger
+├── 📄 ESTRUCTURA.txt                  ← Este archivo
+├── 📄 drizzle.config.ts               (No necesario para Hostinger)
+└── 📄 package.json
+
+=== BASE DE DATOS ===
+
+✅ BD: tiltuplearn
+   Tablas:
+   - modules (4 registros)
+   - sections (5 registros)
+   
+=== PASOS PARA PRODUCCIÓN ===
+
+1. ✅ Actualizar queryClient.ts con URL del dominio
+   
+2. ✅ Compilar React:
+      npm run build
+   
+3. ✅ Subir a Hostinger:
+      - client/dist/ → public_html/
+      - php-backend/api/ → public_html/api/
+      - php-backend/uploads/ → public_html/uploads/
+      - attached_assets/generated_images/ → public_html/generated_images/
+      - attached_assets/pdfs/ → public_html/uploads/pdfs/
+      
+4. ✅ Crear .htaccess en public_html/ (ver DEPLOY.md)
+
+5. ✅ Crear BD y ejecutar schema.sql
+
+6. ✅ Editar credenciales en api/config/db.php
+
+7. ✅ Probar endpoints PHP
+
+8. ✅ Acceder a https://tudominio.com
+
+=== ARCHIVOS CRÍTICOS PARA HOSTINGER ===
+
+Estos archivos DEBEN estar en public_html/:
+
+  □ index.html (de React dist/)
+  □ assets/ (carpeta de React)
+  □ .htaccess (importante para React Router)
+  □ api/modules.php
+  □ api/sections.php
+  □ api/config/db.php (con credenciales actualizadas)
+  □ uploads/pdfs/modulo1/ (PDFs)
+  □ generated_images/ (imágenes de módulos)
+
+=== PRÓXIMOS PASOS ===
+
+1. Reemplazar "localhost:5000" con tu dominio en queryClient.ts
+2. npm run build
+3. Seguir guía DEPLOY.md paso por paso
+4. ¡Listo!
+

@@ -29,7 +29,23 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const path = queryKey.join("/") as string;
+    const parts = path.split("/").filter(p => p); // Filtrar vacíos
+    
+    let url = `http://localhost/TiltUp${path}.php`;
+    
+    // Si es GET /api/modules/modulo-1 -> /api/modules.php?id=modulo-1
+    if (path.includes("/api/modules/") && !path.includes("/sections")) {
+      const id = parts[parts.length - 1];
+      url = `http://localhost/TiltUp/api/modules.php?id=${id}`;
+    } 
+    // Si es GET /api/modules/modulo-1/sections -> /api/sections.php?module_id=modulo-1
+    else if (path.includes("/sections")) {
+      const moduleId = parts[parts.indexOf("modules") + 1];
+      url = `http://localhost/TiltUp/api/sections.php?module_id=${moduleId}`;
+    }
+    
+    const res = await fetch(url, {
       credentials: "include",
     });
 
@@ -38,7 +54,40 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    const data = await res.json();
+    
+    // Reescribir URLs de imágenes y PDFs para que apunten a /TiltUp/
+    if (data) {
+      if (Array.isArray(data)) {
+        data.forEach(item => {
+          if (item.imageUrl && !item.imageUrl.includes("/TiltUp")) {
+            item.imageUrl = `/TiltUp${item.imageUrl}`;
+          }
+          if (item.pdfUrl && !item.pdfUrl.includes("/TiltUp")) {
+            // Si empieza con /pdfs/, convertir a /uploads/pdfs/
+            if (item.pdfUrl.startsWith("/pdfs/")) {
+              item.pdfUrl = `/TiltUp/uploads${item.pdfUrl}`;
+            } else {
+              item.pdfUrl = `/TiltUp${item.pdfUrl}`;
+            }
+          }
+        });
+      } else if (typeof data === "object") {
+        if (data.imageUrl && !data.imageUrl.includes("/TiltUp")) {
+          data.imageUrl = `/TiltUp${data.imageUrl}`;
+        }
+        if (data.pdfUrl && !data.pdfUrl.includes("/TiltUp")) {
+          // Si empieza con /pdfs/, convertir a /uploads/pdfs/
+          if (data.pdfUrl.startsWith("/pdfs/")) {
+            data.pdfUrl = `/TiltUp/uploads${data.pdfUrl}`;
+          } else {
+            data.pdfUrl = `/TiltUp${data.pdfUrl}`;
+          }
+        }
+      }
+    }
+    
+    return data;
   };
 
 export const queryClient = new QueryClient({

@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { Header } from "@/components/Header";
 import { ProgressBar } from "@/components/ProgressBar";
+import { SectionCard } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, CheckCircle2, BookOpen } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Module } from "@shared/schema";
+import type { Module, Section } from "@shared/schema";
 
 export default function ModuleDetail() {
   const [, params] = useRoute("/modulo/:id");
@@ -18,6 +19,11 @@ export default function ModuleDetail() {
 
   const { data: module, isLoading } = useQuery<Module>({
     queryKey: ["/api/modules", moduleId],
+    enabled: !!moduleId,
+  });
+
+  const { data: sections, isLoading: sectionsLoading } = useQuery<Section[]>({
+    queryKey: ["/api/modules", moduleId, "sections"],
     enabled: !!moduleId,
   });
 
@@ -45,6 +51,19 @@ export default function ModuleDetail() {
       toast({
         title: "¡Módulo completado!",
         description: "Has completado este módulo exitosamente.",
+      });
+    },
+  });
+
+  const markSectionCompleteMutation = useMutation({
+    mutationFn: async (sectionId: string) => {
+      return apiRequest("POST", `/api/sections/${sectionId}/complete`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/modules", moduleId, "sections"] });
+      toast({
+        title: "Sección completada",
+        description: "¡Excelente! Has completado esta sección.",
       });
     },
   });
@@ -162,6 +181,28 @@ export default function ModuleDetail() {
                 <div className="whitespace-pre-wrap">{module.content}</div>
               </div>
             </Card>
+
+            {sectionsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-32 w-full" />
+                ))}
+              </div>
+            ) : sections && sections.length > 0 ? (
+              <div>
+                <h2 className="text-2xl font-bold text-foreground mb-6">Secciones del Módulo</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                  {sections.map((section) => (
+                    <SectionCard
+                      key={section.id}
+                      section={section}
+                      onComplete={(sectionId) => markSectionCompleteMutation.mutate(sectionId)}
+                      isLoading={markSectionCompleteMutation.isPending}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-6">

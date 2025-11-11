@@ -61,6 +61,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/modules/:id/sections", async (req, res) => {
+    try {
+      const sections = await storage.getSectionsByModuleId(req.params.id);
+      res.json(sections);
+    } catch (error) {
+      res.status(500).json({ error: "Error al obtener las secciones" });
+    }
+  });
+
+  app.post("/api/sections/:id/complete", async (req, res) => {
+    try {
+      const section = await storage.markSectionComplete(req.params.id);
+      if (!section) {
+        return res.status(404).json({ error: "Sección no encontrada" });
+      }
+      res.json(section);
+    } catch (error) {
+      res.status(500).json({ error: "Error al marcar la sección como completada" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

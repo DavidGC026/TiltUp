@@ -1,24 +1,26 @@
-import { type Module, type InsertModule, type UpdateModuleProgress, type MarkModuleComplete, modules } from "@shared/schema";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { type Module, type InsertModule, type UpdateModuleProgress, type MarkModuleComplete, modules, type Section, sections } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
-const sql = neon(process.env.DATABASE_URL!);
-const db = drizzle(sql);
+// Nota: MemStorage se usa por defecto. Para usar DbStorage, configura DATABASE_URL
 
 export interface IStorage {
   getAllModules(): Promise<Module[]>;
   getModuleById(id: string): Promise<Module | undefined>;
   updateModuleProgress(id: string, data: UpdateModuleProgress): Promise<Module | undefined>;
   markModuleComplete(id: string, data: MarkModuleComplete): Promise<Module | undefined>;
+  getSectionsByModuleId(moduleId: string): Promise<Section[]>;
+  markSectionComplete(sectionId: string): Promise<Section | undefined>;
 }
 
 export class MemStorage implements IStorage {
   private modules: Map<string, Module>;
+  private sections: Map<string, Section>;
 
   constructor() {
     this.modules = new Map();
+    this.sections = new Map();
     this.initializeModules();
+    this.initializeSections();
   }
 
   private initializeModules() {
@@ -171,6 +173,65 @@ Duración estimada: 8 horas de estudio`,
     });
   }
 
+  private initializeSections() {
+    const initialSections: Section[] = [
+      {
+        id: "sec-1-1",
+        moduleId: "modulo-1",
+        type: "diagnostic",
+        title: "Evaluación Diagnóstico",
+        content: "Prueba de conocimientos previos sobre planificación y diseño Tilt-Up. Evalúa tu nivel inicial.",
+        pdfUrl: null,
+        order: 1,
+        completed: false,
+      },
+      {
+        id: "sec-1-2",
+        moduleId: "modulo-1",
+        type: "presentation",
+        title: "Presentación Ejecutiva",
+        content: "Introducción a los conceptos fundamentales del sistema Tilt-Up. Visión general del proceso constructivo.",
+        pdfUrl: "/pdfs/modulo1/presentacionejecutiva.pdf",
+        order: 2,
+        completed: false,
+      },
+      {
+        id: "sec-1-3",
+        moduleId: "modulo-1",
+        type: "infographic",
+        title: "Infografía",
+        content: "Representación visual del flujo de diseño y planificación. Diagramas interactivos del proceso.",
+        pdfUrl: "/pdfs/modulo1/infografia.pdf",
+        order: 3,
+        completed: false,
+      },
+      {
+        id: "sec-1-4",
+        moduleId: "modulo-1",
+        type: "data",
+        title: "Dato en Concreto",
+        content: "Estadísticas, normas y especificaciones técnicas. Datos reales de proyectos Tilt-Up exitosos.",
+        pdfUrl: "/pdfs/modulo1/datoenconcreto.pdf",
+        order: 4,
+        completed: false,
+      },
+      {
+        id: "sec-1-5",
+        moduleId: "modulo-1",
+        type: "evaluation",
+        title: "Evaluación Final",
+        content: "Examen comprensivo para evaluar el dominio de los conceptos del módulo.",
+        pdfUrl: null,
+        order: 5,
+        completed: false,
+      },
+    ];
+
+    initialSections.forEach((section) => {
+      this.sections.set(section.id, section);
+    });
+  }
+
   async getAllModules(): Promise<Module[]> {
     return Array.from(this.modules.values()).sort((a, b) => a.number - b.number);
   }
@@ -209,6 +270,27 @@ Duración estimada: 8 horas de estudio`,
     this.modules.set(id, updatedModule);
     return updatedModule;
   }
+
+  async getSectionsByModuleId(moduleId: string): Promise<Section[]> {
+    return Array.from(this.sections.values())
+      .filter((s) => s.moduleId === moduleId)
+      .sort((a, b) => a.order - b.order);
+  }
+
+  async markSectionComplete(sectionId: string): Promise<Section | undefined> {
+    const section = this.sections.get(sectionId);
+    if (!section) {
+      return undefined;
+    }
+
+    const updatedSection: Section = {
+      ...section,
+      completed: true,
+    };
+
+    this.sections.set(sectionId, updatedSection);
+    return updatedSection;
+  }
 }
 
 export class DbStorage implements IStorage {
@@ -242,6 +324,20 @@ export class DbStorage implements IStorage {
       .returning();
     return result[0];
   }
+
+  async getSectionsByModuleId(moduleId: string): Promise<Section[]> {
+    const result = await db.select().from(sections).where(eq(sections.moduleId, moduleId)).orderBy(sections.order);
+    return result;
+  }
+
+  async markSectionComplete(sectionId: string): Promise<Section | undefined> {
+    const result = await db
+      .update(sections)
+      .set({ completed: true })
+      .where(eq(sections.id, sectionId))
+      .returning();
+    return result[0];
+  }
 }
 
-export const storage = new DbStorage();
+export const storage = new MemStorage();
