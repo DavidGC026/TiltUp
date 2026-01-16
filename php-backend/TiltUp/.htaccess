@@ -1,0 +1,16 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /TiltUp/
+    
+    # 1. API Requests -> index.php (handling /api prefix if needed or just letting index.php router handle it)
+    RewriteCond %{REQUEST_URI} ^/TiltUp/api/ [NC]
+    RewriteRule ^(.*)$ index.php [QSA,L]
+
+    # 2. Real files/directories -> Serve directly
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # 3. Everything else -> index.html (SPA Routing)
+    RewriteRule ^ index.html [L]
+</IfModule>

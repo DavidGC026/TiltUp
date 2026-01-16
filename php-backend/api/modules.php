@@ -3,7 +3,8 @@ require_once '../config/db.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $request = explode('/', trim($_SERVER['PATH_INFO'] ?? '', '/'));
-$id = $request[0] ?? null;
+// Permitir id tanto por PATH_INFO (modules.php/modulo-1) como por query string (?id=modulo-1)
+$id = $_GET['id'] ?? ($request[0] ?? null);
 
 switch ($method) {
     case 'GET':

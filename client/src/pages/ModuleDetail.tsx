@@ -12,6 +12,10 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Module, Section } from "@shared/schema";
 
+const FALLBACK_MODULE_IMAGE_URL = "https://grabador.imcyc.com/Imagenes/generated_images/Planning_and_design_module_a2d487e6.png";
+
+import { GanttEditor } from "@/components/GanttEditor";
+
 export default function ModuleDetail() {
   const [, params] = useRoute("/modulo/:id");
   const moduleId = params?.id;
@@ -117,11 +121,11 @@ export default function ModuleDetail() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
         <Link href="/">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="mb-8 hover-elevate active-elevate-2"
             data-testid="button-back"
           >
@@ -134,20 +138,25 @@ export default function ModuleDetail() {
           <div className="lg:col-span-2 space-y-6">
             <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
               <img
-                src={module.imageUrl}
+                src={module.imageUrl || FALLBACK_MODULE_IMAGE_URL}
                 alt={module.title}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  img.onerror = null;
+                  img.src = FALLBACK_MODULE_IMAGE_URL;
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
               <div className="absolute bottom-6 left-6 right-6">
-                <Badge 
-                  variant="secondary" 
+                <Badge
+                  variant="secondary"
                   className="bg-primary text-primary-foreground font-bold px-3 py-1.5 mb-3"
                   data-testid="badge-module-number"
                 >
                   MÓDULO {module.number}
                 </Badge>
-                <h1 
+                <h1
                   className="text-3xl sm:text-4xl font-bold text-white"
                   data-testid="text-module-title"
                 >
@@ -174,11 +183,22 @@ export default function ModuleDetail() {
               <h2 className="text-xl font-semibold text-foreground mb-4">
                 Contenido del módulo
               </h2>
-              <div 
+              <div
                 className="prose prose-sm max-w-none text-foreground"
                 data-testid="text-module-content"
               >
-                <div className="whitespace-pre-wrap">{module.content}</div>
+                <div className="whitespace-pre-wrap mb-6">{module.content}</div>
+
+                {/* Special Gantt Editor for Module 4 */}
+                {(module.number === 4 || moduleId === "modulo-4") && (
+                  <div className="mt-8 not-prose">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      Formato Interactivo de Campo
+                    </h3>
+                    <GanttEditor />
+                  </div>
+                )}
               </div>
             </Card>
 
@@ -211,7 +231,7 @@ export default function ModuleDetail() {
                 Tu Progreso
               </h3>
               <ProgressBar progress={module.progress} className="mb-6" />
-              
+
               <div className="space-y-3">
                 {!module.completed && module.progress < 100 && (
                   <>
@@ -237,7 +257,7 @@ export default function ModuleDetail() {
                     )}
                   </>
                 )}
-                
+
                 {module.progress === 100 && !module.completed && (
                   <Button
                     onClick={handleMarkComplete}
@@ -252,7 +272,7 @@ export default function ModuleDetail() {
                 )}
 
                 {module.completed && (
-                  <div 
+                  <div
                     className="flex items-center gap-2 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md text-green-700 dark:text-green-300"
                     data-testid="status-completed"
                   >

@@ -6,4 +6,5 @@ vite.config.ts.*
 *.tar.gz
 vendor
 .idea
-_pycache_/
+__pycache__/
+*.pyc

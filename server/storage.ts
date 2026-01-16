@@ -1,4 +1,21 @@
-import { type Module, type InsertModule, type UpdateModuleProgress, type MarkModuleComplete, modules, type Section, sections } from "@shared/schema";
+import { 
+  type Module, 
+  type InsertModule, 
+  type UpdateModuleProgress, 
+  type MarkModuleComplete, 
+  modules, 
+  type Section, 
+  sections,
+  type Exam,
+  type ExamQuestion,
+  type ExamQuestionOption,
+  type ExamWithQuestions,
+  type ExamSubmission,
+  type ExamResult,
+  exams,
+  examQuestions,
+  examQuestionOptions,
+} from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 // Nota: MemStorage se usa por defecto. Para usar DbStorage, configura DATABASE_URL
@@ -10,17 +27,26 @@ export interface IStorage {
   markModuleComplete(id: string, data: MarkModuleComplete): Promise<Module | undefined>;
   getSectionsByModuleId(moduleId: string): Promise<Section[]>;
   markSectionComplete(sectionId: string): Promise<Section | undefined>;
+  getExamBySectionId(sectionId: string): Promise<ExamWithQuestions | undefined>;
+  submitExam(examId: string, submission: ExamSubmission): Promise<ExamResult>;
 }
 
 export class MemStorage implements IStorage {
   private modules: Map<string, Module>;
   private sections: Map<string, Section>;
+  private exams: Map<string, Exam>;
+  private examQuestions: Map<string, ExamQuestion>;
+  private examQuestionOptions: Map<string, ExamQuestionOption>;
 
   constructor() {
     this.modules = new Map();
     this.sections = new Map();
+    this.exams = new Map();
+    this.examQuestions = new Map();
+    this.examQuestionOptions = new Map();
     this.initializeModules();
     this.initializeSections();
+    this.initializeExams();
   }
 
   private initializeModules() {
@@ -232,6 +258,68 @@ Duración estimada: 8 horas de estudio`,
     });
   }
 
+  private initializeExams() {
+    // Examen de la sección sec-1-1 (Evaluación Diagnóstico del Módulo 1)
+    const exam1: Exam = {
+      id: "exam-sec-1-1",
+      sectionId: "sec-1-1",
+      title: "Examen Diagnóstico",
+      description: "Preguntas y opciones importadas desde EXAMEN DIAGNÓSTICO.xlsx",
+    };
+    this.exams.set(exam1.id, exam1);
+
+    // Cargar preguntas del SQL - primeras 10 preguntas como ejemplo
+    const questionsData = [
+      { id: "exam-sec-1-1-q001", number: 1, text: "¿Cómo se define el método de Tilt-Up?", options: [
+        { id: "exam-sec-1-1-q001-A", label: "A", text: "Como una técnica de construcción metálica prefabricada.", correct: false },
+        { id: "exam-sec-1-1-q001-B", label: "B", text: "Como una técnica para colar elementos de concreto verticalmente.", correct: false },
+        { id: "exam-sec-1-1-q001-C", label: "C", text: "Como una técnica de ensamblaje de paneles transportados por carretera.", correct: false },
+        { id: "exam-sec-1-1-q001-D", label: "D", text: "Como una técnica para colar elementos de concreto horizontalmente en el sitio y luego inclinarlos a su posición final.", correct: true },
+      ]},
+      { id: "exam-sec-1-1-q002", number: 2, text: "¿Cuál de las siguientes es una característica de los paneles de Tilt-Up?", options: [
+        { id: "exam-sec-1-1-q002-A", label: "A", text: "No transfieren las cargas a la cimentación.", correct: false },
+        { id: "exam-sec-1-1-q002-B", label: "B", text: "Se construyen antes del diafragma de construcción estructural.", correct: false },
+        { id: "exam-sec-1-1-q002-C", label: "C", text: "Generalmente se manipulan múltiples veces antes de su instalación.", correct: false },
+        { id: "exam-sec-1-1-q002-D", label: "D", text: "Son de tamaño y peso que sólo permiten su construcción en el sitio.", correct: true },
+      ]},
+      { id: "exam-sec-1-1-q003", number: 3, text: "La____________ y__________ son ventajas del método Tilt-Up.", options: [
+        { id: "exam-sec-1-1-q003-A", label: "A", text: "Sustentabilidad y flexibilidad", correct: true },
+        { id: "exam-sec-1-1-q003-B", label: "B", text: "Resistencia al fuego y paisajismo", correct: false },
+        { id: "exam-sec-1-1-q003-C", label: "C", text: "Sustentabilidad y paisajismo", correct: false },
+        { id: "exam-sec-1-1-q003-D", label: "D", text: "Resistencia la fuego y flexibilidad", correct: false },
+      ]},
+      { id: "exam-sec-1-1-q004", number: 4, text: "Supera cualquier otra opción que ofrecen mampostería y madera", options: [
+        { id: "exam-sec-1-1-q004-A", label: "A", text: "VERDADERO", correct: true },
+        { id: "exam-sec-1-1-q004-B", label: "B", text: "FALSO", correct: false },
+      ]},
+      { id: "exam-sec-1-1-q005", number: 5, text: "El mayor porcentaje del uso de este método constructivo se encuentra en el sector industrial", options: [
+        { id: "exam-sec-1-1-q005-A", label: "A", text: "VERDADERO", correct: true },
+        { id: "exam-sec-1-1-q005-B", label: "B", text: "FALSO", correct: false },
+      ]},
+    ];
+
+    questionsData.forEach((qData) => {
+      const question: ExamQuestion = {
+        id: qData.id,
+        examId: exam1.id,
+        questionNumber: qData.number,
+        questionText: qData.text,
+      };
+      this.examQuestions.set(question.id, question);
+
+      qData.options.forEach((opt) => {
+        const option: ExamQuestionOption = {
+          id: opt.id,
+          questionId: question.id,
+          optionLabel: opt.label,
+          optionText: opt.text,
+          isCorrect: opt.correct,
+        };
+        this.examQuestionOptions.set(option.id, option);
+      });
+    });
+  }
+
   async getAllModules(): Promise<Module[]> {
     return Array.from(this.modules.values()).sort((a, b) => a.number - b.number);
   }
@@ -291,52 +379,121 @@ Duración estimada: 8 horas de estudio`,
     this.sections.set(sectionId, updatedSection);
     return updatedSection;
   }
+
+  async getExamBySectionId(sectionId: string): Promise<ExamWithQuestions | undefined> {
+    // Buscar el examen por sectionId
+    const exam = Array.from(this.exams.values()).find(e => e.sectionId === sectionId);
+    if (!exam) {
+      return undefined;
+    }
+
+    // Obtener todas las preguntas del examen
+    const questions = Array.from(this.examQuestions.values())
+      .filter(q => q.examId === exam.id)
+      .sort((a, b) => a.questionNumber - b.questionNumber);
+
+    // Para cada pregunta, obtener sus opciones
+    const questionsWithOptions = questions.map(question => {
+      const options = Array.from(this.examQuestionOptions.values())
+        .filter(o => o.questionId === question.id)
+        .sort((a, b) => a.optionLabel.localeCompare(b.optionLabel));
+      
+      return {
+        ...question,
+        options,
+      };
+    });
+
+    return {
+      ...exam,
+      questions: questionsWithOptions,
+    };
+  }
+
+  async submitExam(examId: string, submission: ExamSubmission): Promise<ExamResult> {
+    const exam = this.exams.get(examId);
+    if (!exam) {
+      throw new Error("Examen no encontrado");
+    }
+
+    // Obtener todas las preguntas del examen
+    const questions = Array.from(this.examQuestions.values())
+      .filter(q => q.examId === examId);
+
+    let correctAnswers = 0;
+    const answers = [];
+
+    for (const question of questions) {
+      const selectedOptionId = submission.answers[question.id];
+      if (!selectedOptionId) {
+        continue;
+      }
+
+      // Encontrar la opción correcta
+      const correctOption = Array.from(this.examQuestionOptions.values())
+        .find(o => o.questionId === question.id && o.isCorrect);
+
+      const isCorrect = selectedOptionId === correctOption?.id;
+      if (isCorrect) {
+        correctAnswers++;
+      }
+
+      answers.push({
+        questionId: question.id,
+        selectedOptionId,
+        correctOptionId: correctOption?.id || "",
+        isCorrect,
+      });
+    }
+
+    const totalQuestions = questions.length;
+    const score = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+    const passed = score >= 70; // 70% para aprobar
+
+    return {
+      totalQuestions,
+      correctAnswers,
+      score,
+      passed,
+      answers,
+    };
+  }
 }
 
 export class DbStorage implements IStorage {
+  // TODO: Importar y configurar db cuando se conecte a la base de datos
   async getAllModules(): Promise<Module[]> {
-    const result = await db.select().from(modules).orderBy(modules.number);
-    return result;
+    throw new Error("Método no implementado para DbStorage");
   }
 
   async getModuleById(id: string): Promise<Module | undefined> {
-    const result = await db.select().from(modules).where(eq(modules.id, id));
-    return result[0];
+    throw new Error("Método no implementado para DbStorage");
   }
 
   async updateModuleProgress(id: string, data: UpdateModuleProgress): Promise<Module | undefined> {
-    const result = await db
-      .update(modules)
-      .set({ progress: data.progress })
-      .where(eq(modules.id, id))
-      .returning();
-    return result[0];
+    throw new Error("Método no implementado para DbStorage");
   }
 
   async markModuleComplete(id: string, data: MarkModuleComplete): Promise<Module | undefined> {
-    const result = await db
-      .update(modules)
-      .set({ 
-        completed: data.completed,
-        progress: data.completed ? 100 : undefined 
-      })
-      .where(eq(modules.id, id))
-      .returning();
-    return result[0];
+    throw new Error("Método no implementado para DbStorage");
   }
 
   async getSectionsByModuleId(moduleId: string): Promise<Section[]> {
-    const result = await db.select().from(sections).where(eq(sections.moduleId, moduleId)).orderBy(sections.order);
-    return result;
+    throw new Error("Método no implementado para DbStorage");
   }
 
   async markSectionComplete(sectionId: string): Promise<Section | undefined> {
-    const result = await db
-      .update(sections)
-      .set({ completed: true })
-      .where(eq(sections.id, sectionId))
-      .returning();
-    return result[0];
+    throw new Error("Método no implementado para DbStorage");
+  }
+
+  async getExamBySectionId(sectionId: string): Promise<ExamWithQuestions | undefined> {
+    // TODO: Implementar con Drizzle ORM cuando se conecte a la DB
+    throw new Error("Método no implementado para DbStorage");
+  }
+
+  async submitExam(examId: string, submission: ExamSubmission): Promise<ExamResult> {
+    // TODO: Implementar con Drizzle ORM cuando se conecte a la DB
+    throw new Error("Método no implementado para DbStorage");
   }
 }
 

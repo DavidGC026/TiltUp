@@ -1,0 +1,54 @@
+Excel → SQL (exámenes) para TiltUpLearn
+
+Archivo:
+  scripts/exam_excel_to_sql.py
+
+Requisitos
+- python3 (sin dependencias externas)
+- El Excel debe ser .xlsx
+
+Formato del Excel esperado
+1) Hoja "PREGUNTAS"
+   Columnas (por encabezado):
+   - "#" (número de pregunta)
+   - "PREGUNTA" (texto)
+
+2) Hoja "RESPUESTAS"
+   Columnas (por encabezado):
+   - "#" (número de pregunta)
+   - "OPCIONES DE RESPUESTA" (texto de la opción)
+   - "RESPUESTA" (0/1 indicando si esa opción es la correcta)
+
+Notas de mapeo
+- Las opciones se agrupan por el # de pregunta.
+- El label A/B/C/D/... se asigna por el orden de filas en la hoja RESPUESTAS.
+- Si una opción viene como "0" o "1" (texto), el script lo normaliza a:
+  - "0" => "FALSO"
+  - "1" => "VERDADERO"
+- El script emite WARN si una pregunta tiene 0 o más de 1 respuesta correcta.
+  Si usas --strict, esas advertencias causan exit code 1.
+
+Ejemplo de uso (generar SQL)
+  python3 scripts/exam_excel_to_sql.py "shared/EXAMEN DIAGNÓSTICO.xlsx" \
+    --section-id sec-1-1 \
+    --exam-id exam-sec-1-1 \
+    --title "Examen Diagnóstico" \
+    --description "Importado desde EXAMEN DIAGNÓSTICO.xlsx" \
+    --out shared/examen_diagnostico.sql
+
+Ejemplo (imprimir a stdout)
+  python3 scripts/exam_excel_to_sql.py archivo.xlsx --section-id sec-1-1 > examen.sql
+
+Ejemplo (hojas con otro nombre)
+  python3 scripts/exam_excel_to_sql.py archivo.xlsx \
+    --section-id sec-2-3 \
+    --questions-sheet "PREGUNTAS MOD2" \
+    --answers-sheet "RESPUESTAS MOD2" \
+    -o shared/examen_mod2.sql
+
+Importar a MySQL/MariaDB
+  mysql -u {{DB_USER}} -p {{DB_NAME}} < shared/examen_diagnostico.sql
+
+Tips
+- Si el script dice que no existe una hoja, revisa el nombre exacto dentro del Excel.
+- Si ves WARN de respuestas correctas, revisa la columna RESPUESTA (debe tener exactamente un 1 por pregunta).

@@ -90,7 +90,19 @@ export function SectionCard({ section, onComplete, isLoading = false }: SectionC
           </Link>
         )}
 
-        {!section.completed && (
+        {(section.type === "diagnostic" || section.type === "evaluation") && !section.completed && (
+          <Link href={`/examen/${section.id}`} className="w-full inline-block">
+            <Button
+              className="w-full"
+              variant="default"
+            >
+              <ClipboardCheck className="w-4 h-4 mr-2" />
+              Tomar Examen
+            </Button>
+          </Link>
+        )}
+
+        {(section.type !== "diagnostic" && section.type !== "evaluation") && !section.completed && (
           <Button
             onClick={() => onComplete(section.id)}
             disabled={isLoading}

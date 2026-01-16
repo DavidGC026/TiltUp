@@ -5,6 +5,8 @@ import { CheckCircle2, Lock } from "lucide-react";
 import { Link } from "wouter";
 import type { Module } from "@shared/schema";
 
+const FALLBACK_MODULE_IMAGE_URL = "https://grabador.imcyc.com/Imagenes/generated_images/Planning_and_design_module_a2d487e6.png";
+
 interface ModuleCardProps {
   module: Module;
   isLocked?: boolean;
@@ -22,9 +24,14 @@ export function ModuleCard({ module, isLocked = false }: ModuleCardProps) {
     >
       <div className="relative aspect-video overflow-hidden bg-muted">
         <img
-          src={module.imageUrl}
+          src={module.imageUrl || FALLBACK_MODULE_IMAGE_URL}
           alt={module.title}
           className="w-full h-full object-cover"
+          onError={(e) => {
+            const img = e.currentTarget;
+            img.onerror = null;
+            img.src = FALLBACK_MODULE_IMAGE_URL;
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
         

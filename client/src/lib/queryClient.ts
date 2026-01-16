@@ -28,67 +28,118 @@ export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const path = queryKey.join("/") as string;
-    const parts = path.split("/").filter(p => p); // Filtrar vacíos
-    
-    let url = `http://localhost/TiltUp${path}.php`;
-    
-    // Si es GET /api/modules/modulo-1 -> /api/modules.php?id=modulo-1
-    if (path.includes("/api/modules/") && !path.includes("/sections")) {
-      const id = parts[parts.length - 1];
-      url = `http://localhost/TiltUp/api/modules.php?id=${id}`;
-    } 
-    // Si es GET /api/modules/modulo-1/sections -> /api/sections.php?module_id=modulo-1
-    else if (path.includes("/sections")) {
-      const moduleId = parts[parts.indexOf("modules") + 1];
-      url = `http://localhost/TiltUp/api/sections.php?module_id=${moduleId}`;
-    }
-    
-    const res = await fetch(url, {
-      credentials: "include",
-    });
+    async ({ queryKey }) => {
+      const path = queryKey.join("/") as string;
+      const parts = path.split("/").filter(p => p); // Filtrar vacíos
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
+      let url = `/TiltUp${path}.php`;
 
-    await throwIfResNotOk(res);
-    const data = await res.json();
-    
-    // Reescribir URLs de imágenes y PDFs para que apunten a /TiltUp/
-    if (data) {
-      if (Array.isArray(data)) {
-        data.forEach(item => {
-          if (item.imageUrl && !item.imageUrl.includes("/TiltUp")) {
-            item.imageUrl = `/TiltUp${item.imageUrl}`;
-          }
-          if (item.pdfUrl && !item.pdfUrl.includes("/TiltUp")) {
-            // Si empieza con /pdfs/, convertir a /uploads/pdfs/
-            if (item.pdfUrl.startsWith("/pdfs/")) {
-              item.pdfUrl = `/TiltUp/uploads${item.pdfUrl}`;
-            } else {
-              item.pdfUrl = `/TiltUp${item.pdfUrl}`;
-            }
-          }
-        });
-      } else if (typeof data === "object") {
-        if (data.imageUrl && !data.imageUrl.includes("/TiltUp")) {
-          data.imageUrl = `/TiltUp${data.imageUrl}`;
-        }
-        if (data.pdfUrl && !data.pdfUrl.includes("/TiltUp")) {
-          // Si empieza con /pdfs/, convertir a /uploads/pdfs/
-          if (data.pdfUrl.startsWith("/pdfs/")) {
-            data.pdfUrl = `/TiltUp/uploads${data.pdfUrl}`;
-          } else {
-            data.pdfUrl = `/TiltUp${data.pdfUrl}`;
-          }
-        }
+      // Si es GET /api/modules/modulo-1 -> /api/modules.php?id=modulo-1
+      if (path.includes("/api/modules/") && !path.includes("/sections")) {
+        const id = parts[parts.length - 1];
+        url = `/TiltUp/api/modules.php?id=${id}`;
       }
-    }
-    
-    return data;
-  };
+      // Si es GET /api/modules/modulo-1/sections -> /api/sections.php?module_id=modulo-1
+      else if (path.includes("/sections") && path.includes("exam")) {
+        // /api/sections/sec-1-1/exam -> /api/exam.php?section_id=sec-1-1
+        const sectionId = parts[parts.indexOf("sections") + 1];
+        url = `/TiltUp/api/exam.php?section_id=${sectionId}`;
+      }
+      else if (path.includes("/sections")) {
+        const moduleId = parts[parts.indexOf("modules") + 1];
+        url = `/TiltUp/api/sections.php?module_id=${moduleId}`;
+      }
+
+      const res = await fetch(url, {
+        credentials: "include",
+      });
+
+      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+        return null;
+      }
+
+      await throwIfResNotOk(res);
+      const data = await res.json();
+
+      // Reescribir URLs (backend PHP devuelve snake_case) y normalizar tipos
+      const toTiltUpUrl = (raw: unknown) => {
+        if (typeof raw !== "string" || raw.length === 0) return raw;
+        if (raw.includes("/TiltUp") || raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+        if (raw.startsWith("/")) return `/TiltUp${raw}`;
+        return `/TiltUp/${raw}`;
+      };
+
+      const normalizeItem = (item: any) => {
+        if (!item || typeof item !== "object") return;
+
+        // Map snake_case -> camelCase where needed
+        if (item.image_url && !item.imageUrl) item.imageUrl = item.image_url;
+        if (item.pdf_url && !item.pdfUrl) item.pdfUrl = item.pdf_url;
+        if (item.question_text && !item.questionText) item.questionText = item.question_text;
+        if (item.question_number && !item.questionNumber) item.questionNumber = item.question_number;
+        if (item.option_text && !item.optionText) item.optionText = item.option_text;
+        if (item.option_label && !item.optionLabel) item.optionLabel = item.option_label;
+        if (item.is_correct !== undefined && item.isCorrect === undefined) item.isCorrect = item.is_correct;
+
+        // Normalize types from MySQL (often returned as strings)
+        if ("progress" in item && typeof item.progress !== "number") {
+          const n = Number(item.progress);
+          item.progress = Number.isFinite(n) ? n : 0;
+        }
+        if ("number" in item && typeof item.number !== "number") {
+          const n = Number(item.number);
+          item.number = Number.isFinite(n) ? n : item.number;
+        }
+        if ("order" in item && typeof item.order !== "number") {
+          const n = Number(item.order);
+          item.order = Number.isFinite(n) ? n : item.order;
+        }
+        if ("completed" in item && typeof item.completed !== "boolean") {
+          item.completed = item.completed === true || item.completed === 1 || item.completed === "1" || item.completed === "true";
+        }
+
+        // Rewrite image/PDF URLs so they resolve under /TiltUp/
+        if (item.imageUrl) {
+          const rewritten = toTiltUpUrl(item.imageUrl);
+          item.imageUrl = rewritten;
+          item.image_url = rewritten;
+        }
+        if (item.pdfUrl) {
+          // Back-compat: older DB values used /pdfs/... but files live under /uploads/pdfs/...
+          if (typeof item.pdfUrl === "string" && item.pdfUrl.startsWith("/pdfs/")) {
+            item.pdfUrl = `/uploads${item.pdfUrl}`;
+          }
+          const rewritten = toTiltUpUrl(item.pdfUrl);
+          item.pdfUrl = rewritten;
+          item.pdf_url = rewritten;
+        }
+      };
+
+      const normalizeRecursive = (obj: any) => {
+        if (!obj) return;
+        
+        if (Array.isArray(obj)) {
+          obj.forEach(normalizeRecursive);
+        } else if (typeof obj === "object") {
+          normalizeItem(obj);
+          // Normalizar arrays anidados
+          if (obj.questions && Array.isArray(obj.questions)) {
+            obj.questions.forEach((q: any) => {
+              normalizeItem(q);
+              if (q.options && Array.isArray(q.options)) {
+                q.options.forEach(normalizeItem);
+              }
+            });
+          }
+        }
+      };
+
+      if (data) {
+        normalizeRecursive(data);
+      }
+
+      return data;
+    };
 
 export const queryClient = new QueryClient({
   defaultOptions: {

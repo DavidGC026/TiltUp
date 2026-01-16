@@ -1,15 +1,12 @@
-import { useState, useEffect } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
+import { useState, useEffect, useRef } from "react";
+import * as pdfjsLib from "pdfjs-dist";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
+import { ChevronLeft, ChevronRight, Download, Maximize, Minimize } from "lucide-react";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
-
-const cmapsUrl = "https://unpkg.com/pdfjs-dist@5.4.296/cmaps/";
+// Set up worker with local asset
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 
 interface PDFViewerProps {
@@ -20,65 +17,111 @@ interface PDFViewerProps {
 export function PDFViewer({ pdfUrl, title }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(window.innerWidth < 640 ? 0.6 : 1.5);
   const [error, setError] = useState<string | null>(null);
-  const [pdfData, setPdfData] = useState<Blob | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Cargar el PDF como blob para evitar problemas de CORS
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pdfDocRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Load and render PDF
   useEffect(() => {
     setLoading(true);
     setError(null);
-    setPdfData(null);
-    
-    const fetchPdf = async () => {
+    setPageNumber(1);
+
+    const loadPdf = async () => {
       try {
-        console.log('Iniciando carga de PDF desde:', pdfUrl);
-        const response = await fetch(pdfUrl);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const blob = await response.blob();
-        console.log('PDF descargado correctamente, tamaño:', blob.size, 'bytes');
-        setPdfData(blob);
-        setError(null);
+        console.log('Cargando PDF desde:', pdfUrl);
+        const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+        pdfDocRef.current = pdf;
+        setNumPages(pdf.numPages);
+        console.log('PDF cargado exitosamente. Páginas:', pdf.numPages);
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Error desconocido';
-        console.error('Error al descargar PDF:', errorMsg);
+        console.error('Error cargando PDF:', errorMsg);
         setError(`No se pudo cargar el PDF: ${errorMsg}`);
-        setPdfData(null);
       } finally {
         setLoading(false);
       }
     };
-    
-    fetchPdf();
+
+    loadPdf();
   }, [pdfUrl]);
 
-  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
-    setNumPages(numPages);
-    setPageNumber(1);
-    setError(null);
-    console.log('PDF renderizado exitosamente:', pdfUrl, 'Páginas:', numPages);
-  }
+  // Render current page
+  useEffect(() => {
+    const renderPage = async () => {
+      if (!pdfDocRef.current || !canvasRef.current || !numPages) return;
 
-  function onDocumentLoadError(error: Error) {
-    console.error('Error renderizando PDF:', error);
-    setError(`Error al renderizar PDF: ${error.message}`);
-  }
+      try {
+        const page = await pdfDocRef.current.getPage(pageNumber);
+        const viewport = page.getViewport({ scale });
+
+        const canvas = canvasRef.current;
+        const context = canvas.getContext('2d');
+        if (!context) return;
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({
+          canvasContext: context,
+          viewport: viewport,
+        }).promise;
+
+        console.log(`Página ${pageNumber} renderizada`);
+      } catch (err) {
+        console.error('Error renderizando página:', err);
+      }
+    };
+
+    renderPage();
+  }, [pageNumber, scale, numPages]);
+
+  // Handle fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    if (!containerRef.current) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await containerRef.current.requestFullscreen();
+        // Increase scale slightly for fullscreen if desired, or let user zoom
+        setScale(1.5);
+      } else {
+        await document.exitFullscreen();
+        setScale(window.innerWidth < 640 ? 0.6 : 1.5);
+      }
+    } catch (err) {
+      console.error("Error toggling fullscreen:", err);
+    }
+  };
 
   const goToPreviousPage = () => {
-    setPageNumber(Math.max(pageNumber - 1, 1));
+    if (pageNumber > 1) {
+      setPageNumber(pageNumber - 1);
+    }
   };
 
   const goToNextPage = () => {
-    setPageNumber(Math.min(pageNumber + 1, numPages || 1));
+    if (numPages && pageNumber < numPages) {
+      setPageNumber(pageNumber + 1);
+    }
   };
 
   const zoomIn = () => {
-    setScale(Math.min(scale + 0.25, 2));
+    setScale(Math.min(scale + 0.25, 3));
   };
 
   const zoomOut = () => {
@@ -86,78 +129,83 @@ export function PDFViewer({ pdfUrl, title }: PDFViewerProps) {
   };
 
   return (
-    <Card className="p-6 bg-white dark:bg-slate-950">
-      {title && (
+    <Card className={`p-6 bg-white dark:bg-slate-950 transition-all duration-300 ${isFullscreen ? 'fixed inset-0 z-50 rounded-none h-screen w-screen overflow-hidden flex flex-col' : ''}`} ref={containerRef}>
+      {title && !isFullscreen && (
         <h3 className="text-lg font-semibold text-foreground mb-4">{title}</h3>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-2 justify-between items-center">
-        <div className="flex gap-2">
+      <div className={`flex flex-col sm:flex-row flex-wrap gap-2 justify-between items-center bg-muted/30 p-2 rounded-lg ${isFullscreen ? 'mb-2' : 'mb-4'}`}>
+        <div className="flex gap-1 sm:gap-2 items-center w-full sm:w-auto justify-center sm:justify-start">
           <Button
             onClick={goToPreviousPage}
             disabled={pageNumber === 1}
             variant="outline"
             size="sm"
+            className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3 bg-white dark:bg-slate-900"
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="px-3 py-2 text-sm">
-            Página {pageNumber} {numPages && `de ${numPages}`}
+          <span className="px-2 py-1 text-xs sm:text-sm whitespace-nowrap min-w-[80px] text-center font-medium">
+            {pageNumber} / {numPages || '-'}
           </span>
           <Button
             onClick={goToNextPage}
-            disabled={pageNumber === numPages}
+            disabled={!numPages || pageNumber >= numPages}
             variant="outline"
             size="sm"
+            className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3 bg-white dark:bg-slate-900"
           >
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
 
-        <div className="flex gap-2">
-          <Button onClick={zoomOut} variant="outline" size="sm">
+        <div className="flex gap-1 sm:gap-2 items-center w-full sm:w-auto justify-center sm:justify-end border-t sm:border-t-0 pt-2 sm:pt-0 mt-1 sm:mt-0">
+          <Button onClick={zoomOut} variant="outline" size="sm" className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3 bg-white dark:bg-slate-900" title="Alejar">
             −
           </Button>
-          <span className="px-3 py-2 text-sm">{Math.round(scale * 100)}%</span>
-          <Button onClick={zoomIn} variant="outline" size="sm">
+          <span className="px-2 py-1 text-xs sm:text-sm min-w-[50px] text-center font-medium">{Math.round(scale * 100)}%</span>
+          <Button onClick={zoomIn} variant="outline" size="sm" className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3 bg-white dark:bg-slate-900" title="Acercar">
             +
           </Button>
-          <a href={pdfUrl} download className="inline-block">
-            <Button variant="default" size="sm">
-              <Download className="w-4 h-4 mr-2" />
-              Descargar
+
+          <div className="w-px h-6 bg-border mx-1 hidden sm:block"></div>
+
+          <Button
+            onClick={toggleFullscreen}
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3 bg-white dark:bg-slate-900"
+            title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+          >
+            {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+          </Button>
+
+          <a href={pdfUrl} download className="inline-block ml-1 sm:ml-2">
+            <Button variant="default" size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
+              <Download className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Descargar</span>
             </Button>
           </a>
         </div>
       </div>
 
-      <div className="border rounded-lg overflow-auto bg-gray-50 dark:bg-slate-900 flex justify-center" style={{ height: "600px" }}>
+      <div
+        className={`border rounded-lg overflow-auto bg-gray-50 dark:bg-slate-900 flex items-start justify-center p-2 sm:p-4 transition-all ${isFullscreen ? 'flex-1 h-full border-0 rounded-none' : ''}`}
+        style={!isFullscreen ? { height: "calc(100vh - 200px)", minHeight: "400px" } : {}}
+      >
         {error ? (
-          <div className="p-8 text-red-600 max-w-md text-center">
+          <div className="p-8 text-red-600 max-w-md text-center self-center">
             <p className="font-semibold mb-2">Error al cargar el PDF</p>
             <p className="text-sm mb-4">{error}</p>
             <p className="text-xs text-gray-500">URL: {pdfUrl}</p>
           </div>
         ) : loading ? (
-          <div className="p-8 text-gray-600 dark:text-gray-400 text-center">
-            <p className="mb-2">Descargando PDF...</p>
+          <div className="p-8 text-gray-600 dark:text-gray-400 text-center self-center">
+            <p className="mb-2">Cargando PDF...</p>
             <div className="animate-pulse">Espere por favor</div>
           </div>
-        ) : pdfData ? (
-          <Document
-            file={pdfData}
-            onLoadSuccess={onDocumentLoadSuccess}
-            onLoadError={onDocumentLoadError}
-            loading={<div className="p-8">Renderizando PDF...</div>}
-            options={{
-              cMapUrl: cmapsUrl,
-              cMapPacked: true,
-            }}
-          >
-            <Page pageNumber={pageNumber} scale={scale} />
-          </Document>
         ) : (
-          <div className="p-8 text-gray-400">No hay datos de PDF</div>
+          <canvas ref={canvasRef} className="block max-w-none max-h-none shadow-lg " />
         )}
       </div>
     </Card>

@@ -22,8 +22,8 @@ export default function PDFViewPage() {
 
   // Construir URL absoluta para react-pdf
   // pdfPath viene como: uploads/pdfs/modulo1/presentacionejecutiva.pdf
-  const pdfUrl = `http://localhost/TiltUp/${pdfPath}`;
-  
+  const pdfUrl = `/TiltUp/${pdfPath}`;
+
   console.log('PDFViewPage - pdfPath:', pdfPath);
   console.log('PDFViewPage - pdfUrl:', pdfUrl);
   console.log('PDFViewPage - title:', title);
@@ -31,18 +31,14 @@ export default function PDFViewPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+      <main className="w-full px-2 sm:px-4 py-4 sm:py-6">
         <Link href="/">
           <Button variant="ghost" className="mb-6">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Volver
           </Button>
         </Link>
-
-        <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800 text-sm">
-          <p className="font-mono">URL: {pdfUrl}</p>
-        </div>
 
         <PDFViewer pdfUrl={pdfUrl} title={title} />
       </main>

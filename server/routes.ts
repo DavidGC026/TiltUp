@@ -82,6 +82,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rutas de exámenes
+  app.get("/api/sections/:sectionId/exam", async (req, res) => {
+    try {
+      const exam = await storage.getExamBySectionId(req.params.sectionId);
+      if (!exam) {
+        return res.status(404).json({ error: "Examen no encontrado" });
+      }
+      res.json(exam);
+    } catch (error) {
+      res.status(500).json({ error: "Error al obtener el examen" });
+    }
+  });
+
+  app.post("/api/exams/:examId/submit", async (req, res) => {
+    try {
+      const result = await storage.submitExam(req.params.examId, req.body);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Error al enviar el examen" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

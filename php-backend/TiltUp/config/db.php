@@ -1,8 +1,8 @@
 <?php
 // Configuración de base de datos
 define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_USER', 'admin');
+define('DB_PASS', 'Imc590923cz4#');
 define('DB_NAME', 'tiltuplearn');
 
 // Crear conexión
@@ -31,9 +31,17 @@ function get_request_data() {
 }
 
 function allow_cors() {
-    header('Access-Control-Allow-Origin: *');
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $allowed_origins = ['https://grabador.imcyc.com', 'http://localhost', 'http://localhost:5173'];
+
+    if (in_array($origin, $allowed_origins)) {
+        header("Access-Control-Allow-Origin: $origin");
+    }
+    
+    // ESTO ES VITAL:
+    header('Access-Control-Allow-Credentials: true'); 
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
     
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         http_response_code(200);

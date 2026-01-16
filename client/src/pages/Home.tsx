@@ -13,8 +13,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-12 text-center">
           <h2 className="text-4xl sm:text-5xl font-bold text-primary mb-4" data-testid="text-page-title">
             CONSTRUCCIÓN DE TILT-UP
@@ -40,7 +40,7 @@ export default function Home() {
             ))}
           </div>
         ) : (
-          <div 
+          <div
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
             data-testid="grid-modules"
           >
