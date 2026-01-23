@@ -43,57 +43,60 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen w-full flex bg-background">
             {/* Sección Izquierda - Imagen y Branding (Desktop) */}
-            <div className="hidden lg:flex w-1/2 relative bg-slate-900 overflow-hidden">
+            <div className="hidden lg:flex w-1/2 relative bg-black overflow-hidden">
                 {/* Imagen de fondo */}
                 <div
                     className="absolute inset-0 bg-cover bg-center transition-transform duration-10000 hover:scale-105"
                     style={{
                         backgroundImage: "url('/TiltUp/login-bg.png')",
+                        opacity: 0.6
                     }}
                 />
 
                 {/* Overlay degradado */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent opacity-90" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90" />
 
                 {/* Contenido flotante */}
                 <div className="relative z-10 w-full h-full flex flex-col justify-between p-12 text-white">
                     <div className="flex items-center gap-3">
-                        <div className="bg-white/10 backdrop-blur-md p-2 rounded-lg border border-white/20">
-                            <GraduationCap className="w-8 h-8 text-white" />
-                        </div>
+                        <img
+                            src="https://grabador.imcyc.com/Imagenes/imcyc/Logo_imcyc.png"
+                            alt="IMCYC Logo"
+                            className="h-16 w-auto object-contain bg-white/10 p-2 rounded-lg backdrop-blur-sm"
+                        />
                         <div>
-                            <h2 className="text-xl font-bold tracking-tight">TiltUp Learn</h2>
-                            <p className="text-sm text-slate-300">Plataforma Educativa</p>
+                            <h2 className="text-xl font-bold tracking-tight text-white">TiltUp Learn</h2>
+                            <p className="text-sm text-gray-300">Plataforma Educativa</p>
                         </div>
                     </div>
 
                     <div className="space-y-6 max-w-lg mb-12">
                         <h1 className="text-5xl font-bold leading-tight">
                             Construyendo el futuro, <br />
-                            <span className="text-blue-400">panel a panel.</span>
+                            <span className="text-[#0073a5]">panel a panel.</span>
                         </h1>
-                        <p className="text-lg text-slate-300 leading-relaxed">
+                        <p className="text-lg text-gray-300 leading-relaxed">
                             Accede a la capacitación más completa sobre el sistema constructivo Tilt-Up.
                             Domina las técnicas, normativas y procesos de vanguardia.
                         </p>
 
                         <div className="flex flex-col gap-3 mt-8">
-                            <div className="flex items-center gap-3 text-slate-300">
-                                <CheckCircle2 className="w-5 h-5 text-blue-400" />
+                            <div className="flex items-center gap-3 text-gray-300">
+                                <CheckCircle2 className="w-5 h-5 text-[#0073a5]" />
                                 <span>Contenido actualizado 2024</span>
                             </div>
-                            <div className="flex items-center gap-3 text-slate-300">
-                                <CheckCircle2 className="w-5 h-5 text-blue-400" />
+                            <div className="flex items-center gap-3 text-gray-300">
+                                <CheckCircle2 className="w-5 h-5 text-[#0073a5]" />
                                 <span>Certificación profesional</span>
                             </div>
-                            <div className="flex items-center gap-3 text-slate-300">
-                                <CheckCircle2 className="w-5 h-5 text-blue-400" />
+                            <div className="flex items-center gap-3 text-gray-300">
+                                <CheckCircle2 className="w-5 h-5 text-[#0073a5]" />
                                 <span>Acceso multiplataforma</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="text-sm text-slate-400">
+                    <div className="text-sm text-gray-400">
                         © 2025 IMCYC. Todos los derechos reservados.
                     </div>
                 </div>
@@ -109,8 +112,12 @@ export default function LoginPage() {
 
                 <div className="w-full max-w-[420px] relative z-10">
                     <div className="text-center mb-8 lg:text-left">
-                        <div className="inline-flex lg:hidden items-center justify-center p-3 bg-primary/10 rounded-xl mb-6">
-                            <GraduationCap className="w-8 h-8 text-primary" />
+                        <div className="inline-flex lg:hidden items-center justify-center mb-6">
+                            <img
+                                src="https://grabador.imcyc.com/Imagenes/imcyc/Logo_imcyc.png"
+                                alt="IMCYC Logo"
+                                className="h-12 w-auto object-contain"
+                            />
                         </div>
                         <h2 className="text-3xl font-bold tracking-tight text-foreground mb-2">
                             ¡Bienvenido de nuevo!

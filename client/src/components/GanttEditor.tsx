@@ -4,8 +4,10 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Pencil, Trash2, Save, X, ChevronLeft, ChevronRight, GripVertical, Maximize2, Minimize2, Plus } from "lucide-react";
+import { Pencil, Trash2, Save, X, ChevronLeft, ChevronRight, GripVertical, Maximize2, Minimize2, Plus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 // --- Types ---
 type Color = "orange" | "green" | "blue" | "red" | "yellow" | "purple";
@@ -19,13 +21,13 @@ interface RowData {
     weeks: WeekData;
 }
 
-interface PageData {
+interface FormatData {
     id: number;
     title: string;
     rows: RowData[];
 }
 
-// --- Mock Data ---
+// --- Mock Data (Fallback) ---
 const MOCK_FORMATS: FormatData[] = [
     {
         id: 1,
@@ -56,29 +58,115 @@ const COLORS: { id: Color; hex: string; label: string }[] = [
 
 export function GanttEditor() {
     // State
-    const [formats, setFormats] = useState(MOCK_FORMATS);
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const [formats, setFormats] = useState<FormatData[]>(MOCK_FORMATS);
     const [currentFormatIndex, setCurrentFormatIndex] = useState(0);
     const [isEditMode, setIsEditMode] = useState(false);
     const [showGantt, setShowGantt] = useState(false);
     const [selectedColor, setSelectedColor] = useState<Color>("orange");
     const [isDragging, setIsDragging] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
-    const currentFormat = formats[currentFormatIndex];
+    const currentFormat = formats[currentFormatIndex] || formats[0];
+
+    // Fetch Data on Load
+    useEffect(() => {
+        // We don't strictly need user availability on client to call api/gantt.php 
+        // because auth.php handles 401, but checking user context is good UI practice.
+        if (!user) return;
+
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                // PHP Backend API
+                const res = await fetch("/TiltUp/api/gantt.php");
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.formats && data.formats.length > 0) {
+                        setFormats(data.formats);
+                    }
+                }
+            } catch (error) {
+                console.error("Error loading Gantt data:", error);
+                toast({
+                    title: "Error",
+                    description: "No se pudieron cargar los datos guardados.",
+                    variant: "destructive"
+                });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [user, toast]);
+
+    const handleSave = async () => {
+        if (!user) return;
+        setIsSaving(true);
+        try {
+            // PHP Backend API
+            const res = await fetch("/TiltUp/api/gantt.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ formats }),
+            });
+
+            if (!res.ok) throw new Error("Failed to save");
+
+            const result = await res.json();
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
+            toast({
+                title: "Guardado",
+                description: "Los cambios han sido guardados exitosamente.",
+            });
+            setIsEditMode(false);
+        } catch (error) {
+            console.error("Error saving Gantt data:", error);
+            toast({
+                title: "Error",
+                description: "No se pudieron guardar los cambios.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const toggleEditMode = () => {
+        if (isEditMode) {
+            // If we are currently editing and click button (which shows "Guardar"), we save
+            handleSave();
+        } else {
+            setIsEditMode(true);
+        }
+    };
 
     // Logic to update a cell
     const updateCell = (rowId: string, week: number, value: boolean, color?: Color) => {
         setFormats((prevFormats) => {
             const newFormats = [...prevFormats];
-            const format = newFormats[currentFormatIndex];
-            const row = format.rows.find((r) => r.id === rowId);
-            if (row) {
-                if (value) {
-                    row.weeks[week] = { active: true, color: color || selectedColor };
-                } else {
-                    delete row.weeks[week];
+            const format = { ...newFormats[currentFormatIndex] }; // Shallow copy format
+            // Deep copy rows to update safely (React state immutability)
+            format.rows = format.rows.map(r => {
+                if (r.id === rowId) {
+                    const newRow = { ...r, weeks: { ...r.weeks } };
+                    if (value) {
+                        newRow.weeks[week] = { active: true, color: color || selectedColor };
+                    } else {
+                        delete newRow.weeks[week];
+                    }
+                    return newRow;
                 }
-            }
+                return r;
+            });
+            newFormats[currentFormatIndex] = format;
             return newFormats;
         });
     };
@@ -86,9 +174,9 @@ export function GanttEditor() {
     const updateActivityName = (rowId: string, name: string) => {
         setFormats((prevFormats) => {
             const newFormats = [...prevFormats];
-            const format = newFormats[currentFormatIndex];
-            const row = format.rows.find((r) => r.id === rowId);
-            if (row) row.activity = name;
+            const format = { ...newFormats[currentFormatIndex] };
+            format.rows = format.rows.map(r => r.id === rowId ? { ...r, activity: name } : r);
+            newFormats[currentFormatIndex] = format;
             return newFormats;
         });
     }
@@ -96,13 +184,13 @@ export function GanttEditor() {
     const updateFormatTitle = (title: string) => {
         setFormats((prevFormats) => {
             const newFormats = [...prevFormats];
-            newFormats[currentFormatIndex].title = title;
+            newFormats[currentFormatIndex] = { ...newFormats[currentFormatIndex], title };
             return newFormats;
         });
     };
 
     const addNewFormat = () => {
-        const newId = Math.max(...formats.map(p => p.id)) + 1;
+        const newId = Math.max(0, ...formats.map(p => p.id)) + 1;
         const newFormat: FormatData = {
             id: newId,
             title: `Formato ${newId}`,
@@ -112,8 +200,9 @@ export function GanttEditor() {
                 weeks: {}
             }))
         };
-        setFormats([...formats, newFormat]);
-        setCurrentFormatIndex(formats.length); // Switch to new format (index is length before add + 1 - 1 = length)
+        const newFormats = [...formats, newFormat];
+        setFormats(newFormats);
+        setCurrentFormatIndex(newFormats.length - 1);
         setIsEditMode(true);
     };
 
@@ -141,6 +230,16 @@ export function GanttEditor() {
         const activeWeeks = Object.keys(row.weeks).length;
         return Math.round((activeWeeks / totalWeeks) * 100);
     };
+
+    if (isLoading) {
+        return (
+            <Card className="w-full min-h-[400px] flex items-center justify-center border-slate-200 dark:border-slate-800">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </Card>
+        );
+    }
+
+    if (!currentFormat) return null;
 
     return (
         <Card className={cn(
@@ -232,10 +331,11 @@ export function GanttEditor() {
                     <Button
                         variant={isEditMode ? "secondary" : "outline"}
                         size="sm"
-                        onClick={() => setIsEditMode(!isEditMode)}
+                        onClick={toggleEditMode}
+                        disabled={isSaving}
                         className="gap-2 ml-1"
                     >
-                        {isEditMode ? <Save className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : (isEditMode ? <Save className="h-4 w-4" /> : <Pencil className="h-4 w-4" />)}
                         <span className="hidden sm:inline">{isEditMode ? "Guardar" : "Editar"}</span>
                     </Button>
 

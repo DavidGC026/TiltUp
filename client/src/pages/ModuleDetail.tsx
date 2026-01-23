@@ -165,6 +165,28 @@ export default function ModuleDetail() {
               </div>
             </div>
 
+            {sectionsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-32 w-full" />
+                ))}
+              </div>
+            ) : sections && sections.length > 0 ? (
+              <div>
+                <h2 className="text-2xl font-bold text-foreground mb-6">Secciones del Módulo</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                  {sections.map((section) => (
+                    <SectionCard
+                      key={section.id}
+                      section={section}
+                      onComplete={(sectionId) => markSectionCompleteMutation.mutate(sectionId)}
+                      isLoading={markSectionCompleteMutation.isPending}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             <Card className="p-6">
               <div className="flex items-start gap-3 mb-4">
                 <div className="bg-primary/10 text-primary p-2 rounded-md">
@@ -201,28 +223,6 @@ export default function ModuleDetail() {
                 )}
               </div>
             </Card>
-
-            {sectionsLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Skeleton key={i} className="h-32 w-full" />
-                ))}
-              </div>
-            ) : sections && sections.length > 0 ? (
-              <div>
-                <h2 className="text-2xl font-bold text-foreground mb-6">Secciones del Módulo</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-                  {sections.map((section) => (
-                    <SectionCard
-                      key={section.id}
-                      section={section}
-                      onComplete={(sectionId) => markSectionCompleteMutation.mutate(sectionId)}
-                      isLoading={markSectionCompleteMutation.isPending}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : null}
           </div>
 
           <div className="space-y-6">

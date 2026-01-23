@@ -73,3 +73,16 @@ INSERT INTO `module_gantt_rows` (`page_id`, `activity_text`, `sort_order`) VALUE
 (2, 'Actividad A', 1),
 (2, 'Actividad B', 2),
 (2, 'Actividad C', 3);
+
+-- -------------------------------------------------------------
+-- 4. Table for User Gantt Data (JSON Blob implementation)
+--    This supersedes the strictly relational approach for flexible
+--    per-session format editing.
+-- -------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `user_gantt_data` (
+  `user_id` int(11) NOT NULL,
+  `data` json DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`user_id`),
+  CONSTRAINT `fk_user_gantt_json_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -1,10 +1,10 @@
-import { 
-  type Module, 
-  type InsertModule, 
-  type UpdateModuleProgress, 
-  type MarkModuleComplete, 
-  modules, 
-  type Section, 
+import {
+  type Module,
+  type InsertModule,
+  type UpdateModuleProgress,
+  type MarkModuleComplete,
+  modules,
+  type Section,
   sections,
   type Exam,
   type ExamQuestion,
@@ -15,6 +15,7 @@ import {
   exams,
   examQuestions,
   examQuestionOptions,
+  type GanttData
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
@@ -29,6 +30,8 @@ export interface IStorage {
   markSectionComplete(sectionId: string): Promise<Section | undefined>;
   getExamBySectionId(sectionId: string): Promise<ExamWithQuestions | undefined>;
   submitExam(examId: string, submission: ExamSubmission): Promise<ExamResult>;
+  getGanttCtx(userId: number): Promise<GanttData | undefined>;
+  saveGanttCtx(userId: number, data: GanttData): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -37,6 +40,7 @@ export class MemStorage implements IStorage {
   private exams: Map<string, Exam>;
   private examQuestions: Map<string, ExamQuestion>;
   private examQuestionOptions: Map<string, ExamQuestionOption>;
+  private ganttData: Map<number, GanttData>;
 
   constructor() {
     this.modules = new Map();
@@ -44,6 +48,7 @@ export class MemStorage implements IStorage {
     this.exams = new Map();
     this.examQuestions = new Map();
     this.examQuestionOptions = new Map();
+    this.ganttData = new Map();
     this.initializeModules();
     this.initializeSections();
     this.initializeExams();
@@ -270,32 +275,42 @@ Duración estimada: 8 horas de estudio`,
 
     // Cargar preguntas del SQL - primeras 10 preguntas como ejemplo
     const questionsData = [
-      { id: "exam-sec-1-1-q001", number: 1, text: "¿Cómo se define el método de Tilt-Up?", options: [
-        { id: "exam-sec-1-1-q001-A", label: "A", text: "Como una técnica de construcción metálica prefabricada.", correct: false },
-        { id: "exam-sec-1-1-q001-B", label: "B", text: "Como una técnica para colar elementos de concreto verticalmente.", correct: false },
-        { id: "exam-sec-1-1-q001-C", label: "C", text: "Como una técnica de ensamblaje de paneles transportados por carretera.", correct: false },
-        { id: "exam-sec-1-1-q001-D", label: "D", text: "Como una técnica para colar elementos de concreto horizontalmente en el sitio y luego inclinarlos a su posición final.", correct: true },
-      ]},
-      { id: "exam-sec-1-1-q002", number: 2, text: "¿Cuál de las siguientes es una característica de los paneles de Tilt-Up?", options: [
-        { id: "exam-sec-1-1-q002-A", label: "A", text: "No transfieren las cargas a la cimentación.", correct: false },
-        { id: "exam-sec-1-1-q002-B", label: "B", text: "Se construyen antes del diafragma de construcción estructural.", correct: false },
-        { id: "exam-sec-1-1-q002-C", label: "C", text: "Generalmente se manipulan múltiples veces antes de su instalación.", correct: false },
-        { id: "exam-sec-1-1-q002-D", label: "D", text: "Son de tamaño y peso que sólo permiten su construcción en el sitio.", correct: true },
-      ]},
-      { id: "exam-sec-1-1-q003", number: 3, text: "La____________ y__________ son ventajas del método Tilt-Up.", options: [
-        { id: "exam-sec-1-1-q003-A", label: "A", text: "Sustentabilidad y flexibilidad", correct: true },
-        { id: "exam-sec-1-1-q003-B", label: "B", text: "Resistencia al fuego y paisajismo", correct: false },
-        { id: "exam-sec-1-1-q003-C", label: "C", text: "Sustentabilidad y paisajismo", correct: false },
-        { id: "exam-sec-1-1-q003-D", label: "D", text: "Resistencia la fuego y flexibilidad", correct: false },
-      ]},
-      { id: "exam-sec-1-1-q004", number: 4, text: "Supera cualquier otra opción que ofrecen mampostería y madera", options: [
-        { id: "exam-sec-1-1-q004-A", label: "A", text: "VERDADERO", correct: true },
-        { id: "exam-sec-1-1-q004-B", label: "B", text: "FALSO", correct: false },
-      ]},
-      { id: "exam-sec-1-1-q005", number: 5, text: "El mayor porcentaje del uso de este método constructivo se encuentra en el sector industrial", options: [
-        { id: "exam-sec-1-1-q005-A", label: "A", text: "VERDADERO", correct: true },
-        { id: "exam-sec-1-1-q005-B", label: "B", text: "FALSO", correct: false },
-      ]},
+      {
+        id: "exam-sec-1-1-q001", number: 1, text: "¿Cómo se define el método de Tilt-Up?", options: [
+          { id: "exam-sec-1-1-q001-A", label: "A", text: "Como una técnica de construcción metálica prefabricada.", correct: false },
+          { id: "exam-sec-1-1-q001-B", label: "B", text: "Como una técnica para colar elementos de concreto verticalmente.", correct: false },
+          { id: "exam-sec-1-1-q001-C", label: "C", text: "Como una técnica de ensamblaje de paneles transportados por carretera.", correct: false },
+          { id: "exam-sec-1-1-q001-D", label: "D", text: "Como una técnica para colar elementos de concreto horizontalmente en el sitio y luego inclinarlos a su posición final.", correct: true },
+        ]
+      },
+      {
+        id: "exam-sec-1-1-q002", number: 2, text: "¿Cuál de las siguientes es una característica de los paneles de Tilt-Up?", options: [
+          { id: "exam-sec-1-1-q002-A", label: "A", text: "No transfieren las cargas a la cimentación.", correct: false },
+          { id: "exam-sec-1-1-q002-B", label: "B", text: "Se construyen antes del diafragma de construcción estructural.", correct: false },
+          { id: "exam-sec-1-1-q002-C", label: "C", text: "Generalmente se manipulan múltiples veces antes de su instalación.", correct: false },
+          { id: "exam-sec-1-1-q002-D", label: "D", text: "Son de tamaño y peso que sólo permiten su construcción en el sitio.", correct: true },
+        ]
+      },
+      {
+        id: "exam-sec-1-1-q003", number: 3, text: "La____________ y__________ son ventajas del método Tilt-Up.", options: [
+          { id: "exam-sec-1-1-q003-A", label: "A", text: "Sustentabilidad y flexibilidad", correct: true },
+          { id: "exam-sec-1-1-q003-B", label: "B", text: "Resistencia al fuego y paisajismo", correct: false },
+          { id: "exam-sec-1-1-q003-C", label: "C", text: "Sustentabilidad y paisajismo", correct: false },
+          { id: "exam-sec-1-1-q003-D", label: "D", text: "Resistencia la fuego y flexibilidad", correct: false },
+        ]
+      },
+      {
+        id: "exam-sec-1-1-q004", number: 4, text: "Supera cualquier otra opción que ofrecen mampostería y madera", options: [
+          { id: "exam-sec-1-1-q004-A", label: "A", text: "VERDADERO", correct: true },
+          { id: "exam-sec-1-1-q004-B", label: "B", text: "FALSO", correct: false },
+        ]
+      },
+      {
+        id: "exam-sec-1-1-q005", number: 5, text: "El mayor porcentaje del uso de este método constructivo se encuentra en el sector industrial", options: [
+          { id: "exam-sec-1-1-q005-A", label: "A", text: "VERDADERO", correct: true },
+          { id: "exam-sec-1-1-q005-B", label: "B", text: "FALSO", correct: false },
+        ]
+      },
     ];
 
     questionsData.forEach((qData) => {
@@ -397,7 +412,7 @@ Duración estimada: 8 horas de estudio`,
       const options = Array.from(this.examQuestionOptions.values())
         .filter(o => o.questionId === question.id)
         .sort((a, b) => a.optionLabel.localeCompare(b.optionLabel));
-      
+
       return {
         ...question,
         options,
@@ -458,6 +473,14 @@ Duración estimada: 8 horas de estudio`,
       answers,
     };
   }
+
+  async getGanttCtx(userId: number): Promise<GanttData | undefined> {
+    return this.ganttData.get(userId);
+  }
+
+  async saveGanttCtx(userId: number, data: GanttData): Promise<void> {
+    this.ganttData.set(userId, data);
+  }
 }
 
 export class DbStorage implements IStorage {
@@ -493,6 +516,14 @@ export class DbStorage implements IStorage {
 
   async submitExam(examId: string, submission: ExamSubmission): Promise<ExamResult> {
     // TODO: Implementar con Drizzle ORM cuando se conecte a la DB
+    throw new Error("Método no implementado para DbStorage");
+  }
+
+  async getGanttCtx(userId: number): Promise<GanttData | undefined> {
+    throw new Error("Método no implementado para DbStorage");
+  }
+
+  async saveGanttCtx(userId: number, data: GanttData): Promise<void> {
     throw new Error("Método no implementado para DbStorage");
   }
 }

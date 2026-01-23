@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -96,3 +96,29 @@ export interface ExamResult {
     isCorrect: boolean;
   }[];
 }
+
+// --- Gantt Schema ---
+
+// Since we are storing the whole structure as JSON in MemStorage for now to be easier
+// but we want to define tables for the future DB implementation.
+// However, the request specifically asks to "save changes in database per session".
+// The Memory Storage implementation plan was to key by user_id.
+
+// Let's define the Types and Schemas that the frontend will send.
+
+export const ganttSchema = z.object({
+  formats: z.array(z.object({
+    id: z.number(),
+    title: z.string(),
+    rows: z.array(z.object({
+      id: z.string(),
+      activity: z.string(),
+      weeks: z.record(z.coerce.number(), z.object({
+        color: z.enum(["orange", "green", "blue", "red", "yellow", "purple"]),
+        active: z.boolean()
+      }).optional())
+    }))
+  }))
+});
+
+export type GanttData = z.infer<typeof ganttSchema>;

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { updateModuleProgressSchema, markModuleCompleteSchema } from "@shared/schema";
+import { updateModuleProgressSchema, markModuleCompleteSchema, ganttSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/modules", async (req, res) => {
@@ -101,6 +101,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Error al enviar el examen" });
+    }
+  });
+
+  // Rutas de Gantt
+  app.get("/api/gantt/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "ID de usuario inválido" });
+      }
+      const data = await storage.getGanttCtx(userId);
+      // If no data exists, we return null or empty object, frontend handles mock data fallback if needed,
+      // strictly speaking returning null is fine.
+      res.json(data || null);
+    } catch (error) {
+      res.status(500).json({ error: "Error al obtener datos de Gantt" });
+    }
+  });
+
+  app.post("/api/gantt/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "ID de usuario inválido" });
+      }
+      const result = ganttSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: "Datos inválidos", details: result.error });
+      }
+
+      await storage.saveGanttCtx(userId, result.data);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Error al guardar datos de Gantt" });
     }
   });
 

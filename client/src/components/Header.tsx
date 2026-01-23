@@ -11,11 +11,13 @@ export function Header() {
         <div className="flex h-16 items-center justify-between">
           <Link href="/">
             <div className="flex items-center gap-3 cursor-pointer group" data-testid="link-home">
-              <div className="bg-primary text-primary-foreground p-2 rounded-md group-hover-elevate group-active-elevate-2 transition-all">
-                <GraduationCap className="w-6 h-6" />
-              </div>
+              <img
+                src="https://grabador.imcyc.com/Imagenes/imcyc/Logo_imcyc.png"
+                alt="IMCYC Logo"
+                className="h-12 w-auto object-contain"
+              />
               <div className="flex flex-col">
-                <h1 className="text-xl font-bold text-primary">TiltUp</h1>
+                <h1 className="text-xl font-bold text-primary dark:text-white">TiltUp</h1>
                 <p className="text-xs text-muted-foreground hidden sm:block">Plataforma de Aprendizaje</p>
               </div>
             </div>
