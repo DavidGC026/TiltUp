@@ -11,17 +11,8 @@ export default function Home() {
   });
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Background Image */}
-      <div
-        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat bg-fixed"
-        style={{ backgroundImage: "url('/TiltUp/home-bg.png')" }}
-      />
-
-      {/* Blue Overlay */}
-      <div className="absolute inset-0 z-0 bg-[#0073a5]/80 mix-blend-multiply" />
-
-      {/* Content wrapper to ensure it's above background */}
+    <div className="min-h-screen bg-transparent">
+      {/* Content wrapper */}
       <div className="relative z-10">
         <Header />
 

@@ -59,7 +59,19 @@ function App() {
         <AuthProvider>
           <TooltipProvider>
             <Toaster />
-            <AppRouter />
+            <div className="relative min-h-screen w-full overflow-x-hidden">
+              {/* Global Background (Image + Blue Overlay) */}
+              {/* We use a fixed position so it stays while scrolling */}
+              <div className="fixed inset-0 z-[-1]">
+                <div
+                  className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                  style={{ backgroundImage: "url('/TiltUp/home-bg.png')" }}
+                />
+                <div className="absolute inset-0 bg-[#0073a5]/80 mix-blend-multiply" />
+              </div>
+
+              <AppRouter />
+            </div>
           </TooltipProvider>
         </AuthProvider>
       </Router>
