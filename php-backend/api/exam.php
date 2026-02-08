@@ -45,7 +45,8 @@ switch ($method) {
         json_response(['error' => 'Method not allowed'], 405);
 }
 
-function get_exam_by_section($section_id) {
+function get_exam_by_section($section_id)
+{
     global $conn;
 
     $section_id = $conn->real_escape_string($section_id);
@@ -102,7 +103,7 @@ function get_exam_by_section($section_id) {
     }
 
     // Seleccionar un subconjunto aleatorio de preguntas para que el examen no sea siempre igual
-    $limit = 10;
+    $limit = 30;
     $selected_questions = $questions;
     if (count($selected_questions) > $limit) {
         shuffle($selected_questions);
@@ -122,7 +123,9 @@ function get_exam_by_section($section_id) {
 
     $_SESSION['exam_attempts'][$attempt_id] = [
         'examId' => $exam['id'],
-        'questionIds' => array_map(function($q) { return $q['id']; }, $selected_questions),
+        'questionIds' => array_map(function ($q) {
+            return $q['id'];
+        }, $selected_questions),
         'createdAt' => $now,
     ];
 
@@ -132,7 +135,8 @@ function get_exam_by_section($section_id) {
     json_response($exam);
 }
 
-function submit_exam($exam_id, $attempt_id, $answers) {
+function submit_exam($exam_id, $attempt_id, $answers)
+{
     global $conn;
 
     $exam_id = $conn->real_escape_string($exam_id);
@@ -169,8 +173,8 @@ function submit_exam($exam_id, $attempt_id, $answers) {
         json_response(['error' => 'Attempt has no questions'], 400);
     }
 
-    // Asegurar máximo 10 (por seguridad)
-    $question_ids = array_slice($question_ids, 0, 10);
+    // Asegurar máximo 30 (por seguridad)
+    $question_ids = array_slice($question_ids, 0, 30);
 
     $total = count($question_ids);
     if ($total === 0) {
@@ -178,7 +182,7 @@ function submit_exam($exam_id, $attempt_id, $answers) {
     }
 
     // Obtener respuestas correctas (una por pregunta)
-    $escaped_ids = array_map(function($qid) use ($conn) {
+    $escaped_ids = array_map(function ($qid) use ($conn) {
         return "'" . $conn->real_escape_string($qid) . "'";
     }, $question_ids);
 
@@ -226,6 +230,17 @@ function submit_exam($exam_id, $attempt_id, $answers) {
     if ($passed) {
         $section_id = $conn->real_escape_string($exam['sectionId']);
         $conn->query("UPDATE sections SET completed = 1 WHERE id = '$section_id'");
+    }
+
+    // Guardar resultado en exam_results
+    if (isset($_SESSION['user_id'])) {
+        $user_id = (int) $_SESSION['user_id'];
+        $details_json = json_encode($details);
+
+        $stmt = $conn->prepare("INSERT INTO exam_results (user_id, exam_id, attempt_id, score, passed, details) VALUES (?, ?, ?, ?, ?, ?)");
+        $passed_int = $passed ? 1 : 0;
+        $stmt->bind_param("issdis", $user_id, $exam_id, $attempt_id, $score, $passed_int, $details_json);
+        $stmt->execute();
     }
 
     json_response([

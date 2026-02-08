@@ -13,12 +13,15 @@ import { useToast } from "@/hooks/use-toast";
 import type { Module, Section } from "@shared/schema";
 import { GanttEditor } from "@/components/GanttEditor";
 
+import { useAuth } from "@/context/AuthContext";
+
 const FALLBACK_MODULE_IMAGE_URL = "https://grabador.imcyc.com/Imagenes/generated_images/Planning_and_design_module_a2d487e6.png";
 
 export default function ModuleDetail() {
     const [, params] = useRoute("/modulo/:id");
     const moduleId = params?.id;
     const { toast } = useToast();
+    const { user } = useAuth();
 
     const { data: module, isLoading } = useQuery<Module>({
         queryKey: ["/api/modules", moduleId],
@@ -133,9 +136,10 @@ export default function ModuleDetail() {
                     </Button>
                 </Link>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-6">
-                        <div className="relative aspect-video rounded-lg overflow-hidden bg-muted shadow-xl border border-white/20">
+                {/* Top Row: Image and Progress */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                    <div className="lg:col-span-2">
+                        <div className="relative h-48 sm:h-64 md:h-80 rounded-lg overflow-hidden bg-muted shadow-xl border border-white/20">
                             <img
                                 src={module.imageUrl || FALLBACK_MODULE_IMAGE_URL}
                                 alt={module.title}
@@ -163,29 +167,108 @@ export default function ModuleDetail() {
                                 </h1>
                             </div>
                         </div>
+                    </div>
 
-                        {sectionsLoading ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {[1, 2, 3, 4, 5].map((i) => (
-                                    <Skeleton key={i} className="h-32 w-full" />
-                                ))}
-                            </div>
-                        ) : sections && sections.length > 0 ? (
-                            <div>
-                                <h2 className="text-2xl font-bold text-foreground mb-6">Secciones del Módulo</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-                                    {sections.map((section) => (
-                                        <SectionCard
-                                            key={section.id}
-                                            section={section}
-                                            onComplete={(sectionId) => markSectionCompleteMutation.mutate(sectionId)}
-                                            isLoading={markSectionCompleteMutation.isPending}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        ) : null}
+                    <div className="space-y-6">
+                        <Card className="p-6 bg-white/95 backdrop-blur shadow-xl border-white/20">
+                            <h3 className="text-lg font-semibold text-foreground mb-4">
+                                Tu Progreso
+                            </h3>
 
+                            <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-900 rounded-md p-3 mb-4 text-sm text-yellow-800 dark:text-yellow-200">
+                                <p className="font-medium flex items-start gap-2">
+                                    <span className="mt-0.5">⚠️</span>
+                                    <span>
+                                        Nota importante: El hecho de haber terminado el módulo no significa que se obtenga la aprobación a la certificación, falta por revisar la calificación del examen por parte del equipo de enseñanza.
+                                    </span>
+                                </p>
+                            </div>
+
+                            <ProgressBar progress={module.progress} className="mb-6" />
+
+                            <div className="space-y-3">
+                                {!module.completed && module.progress < 100 && (
+                                    <>
+                                        {user?.role === 'admin' && (
+                                            <>
+                                                <Button
+                                                    onClick={() => handleProgressUpdate(Math.min(module.progress + 25, 100))}
+                                                    disabled={updateProgressMutation.isPending}
+                                                    className="w-full"
+                                                    variant="outline"
+                                                    data-testid="button-update-progress"
+                                                >
+                                                    Avanzar 25%
+                                                </Button>
+                                                {module.progress >= 75 && (
+                                                    <Button
+                                                        onClick={() => handleProgressUpdate(100)}
+                                                        disabled={updateProgressMutation.isPending}
+                                                        className="w-full"
+                                                        variant="default"
+                                                        data-testid="button-complete-progress"
+                                                    >
+                                                        Completar al 100%
+                                                    </Button>
+                                                )}
+                                            </>
+                                        )}
+                                    </>
+                                )}
+
+                                {module.progress === 100 && !module.completed && (
+                                    <Button
+                                        onClick={handleMarkComplete}
+                                        disabled={markCompleteMutation.isPending}
+                                        className="w-full"
+                                        variant="default"
+                                        data-testid="button-mark-complete"
+                                    >
+                                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                                        Marcar como completado
+                                    </Button>
+                                )}
+
+                                {module.completed && (
+                                    <div
+                                        className="flex items-center gap-2 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md text-green-700 dark:text-green-300"
+                                        data-testid="status-completed"
+                                    >
+                                        <CheckCircle2 className="w-5 h-5" />
+                                        <span className="font-medium">Módulo completado</span>
+                                    </div>
+                                )}
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+
+                {/* Middle Row: Sections (Full Width) */}
+                {sectionsLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <Skeleton key={i} className="h-32 w-full" />
+                        ))}
+                    </div>
+                ) : sections && sections.length > 0 ? (
+                    <div className="mb-8">
+                        <h2 className="text-2xl font-bold text-foreground mb-6">Secciones del Módulo</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {sections.map((section) => (
+                                <SectionCard
+                                    key={section.id}
+                                    section={section}
+                                    onComplete={(sectionId) => markSectionCompleteMutation.mutate(sectionId)}
+                                    isLoading={markSectionCompleteMutation.isPending}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
+
+                {/* Bottom Row: Description/Content and Info */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                    <div className="lg:col-span-2 space-y-6">
                         <Card className="p-6 bg-white/95 backdrop-blur shadow-xl border-white/20">
                             <div className="flex items-start gap-3 mb-4">
                                 <div className="bg-primary/10 text-primary p-2 rounded-md">
@@ -227,63 +310,6 @@ export default function ModuleDetail() {
                     <div className="space-y-6">
                         <Card className="p-6 bg-white/95 backdrop-blur shadow-xl border-white/20">
                             <h3 className="text-lg font-semibold text-foreground mb-4">
-                                Tu Progreso
-                            </h3>
-                            <ProgressBar progress={module.progress} className="mb-6" />
-
-                            <div className="space-y-3">
-                                {!module.completed && module.progress < 100 && (
-                                    <>
-                                        <Button
-                                            onClick={() => handleProgressUpdate(Math.min(module.progress + 25, 100))}
-                                            disabled={updateProgressMutation.isPending}
-                                            className="w-full"
-                                            variant="outline"
-                                            data-testid="button-update-progress"
-                                        >
-                                            Avanzar 25%
-                                        </Button>
-                                        {module.progress >= 75 && (
-                                            <Button
-                                                onClick={() => handleProgressUpdate(100)}
-                                                disabled={updateProgressMutation.isPending}
-                                                className="w-full"
-                                                variant="default"
-                                                data-testid="button-complete-progress"
-                                            >
-                                                Completar al 100%
-                                            </Button>
-                                        )}
-                                    </>
-                                )}
-
-                                {module.progress === 100 && !module.completed && (
-                                    <Button
-                                        onClick={handleMarkComplete}
-                                        disabled={markCompleteMutation.isPending}
-                                        className="w-full"
-                                        variant="default"
-                                        data-testid="button-mark-complete"
-                                    >
-                                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                                        Marcar como completado
-                                    </Button>
-                                )}
-
-                                {module.completed && (
-                                    <div
-                                        className="flex items-center gap-2 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md text-green-700 dark:text-green-300"
-                                        data-testid="status-completed"
-                                    >
-                                        <CheckCircle2 className="w-5 h-5" />
-                                        <span className="font-medium">Módulo completado</span>
-                                    </div>
-                                )}
-                            </div>
-                        </Card>
-
-                        <Card className="p-6 bg-white/95 backdrop-blur shadow-xl border-white/20">
-                            <h3 className="text-lg font-semibold text-foreground mb-4">
                                 Información
                             </h3>
                             <div className="space-y-3 text-sm">
@@ -302,6 +328,6 @@ export default function ModuleDetail() {
                     </div>
                 </div>
             </main>
-        </div>
+        </div >
     );
 }

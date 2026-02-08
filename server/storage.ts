@@ -15,21 +15,31 @@ import {
   exams,
   examQuestions,
   examQuestionOptions,
-  type GanttData
+  type GanttData,
+  moduleProgress,
+  sectionProgress,
+  users,
+  type User,
+  type InsertUser
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { initialExams as seededExams, initialQuestions as seededQuestions, initialOptions as seededOptions } from "./data/exams";
 
 // Nota: MemStorage se usa por defecto. Para usar DbStorage, configura DATABASE_URL
 
 export interface IStorage {
-  getAllModules(): Promise<Module[]>;
-  getModuleById(id: string): Promise<Module | undefined>;
-  updateModuleProgress(id: string, data: UpdateModuleProgress): Promise<Module | undefined>;
-  markModuleComplete(id: string, data: MarkModuleComplete): Promise<Module | undefined>;
-  getSectionsByModuleId(moduleId: string): Promise<Section[]>;
-  markSectionComplete(sectionId: string): Promise<Section | undefined>;
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+
+  getAllModules(userId?: number): Promise<Module[]>;
+  getModuleById(id: string, userId?: number): Promise<Module | undefined>;
+  updateModuleProgress(userId: number, moduleId: string, data: UpdateModuleProgress): Promise<Module | undefined>;
+  markModuleComplete(userId: number, moduleId: string, data: MarkModuleComplete): Promise<Module | undefined>;
+  getSectionsByModuleId(moduleId: string, userId?: number): Promise<Section[]>;
+  markSectionComplete(userId: number, sectionId: string): Promise<Section | undefined>;
   getExamBySectionId(sectionId: string): Promise<ExamWithQuestions | undefined>;
-  submitExam(examId: string, submission: ExamSubmission): Promise<ExamResult>;
+  submitExam(userId: number, examId: string, submission: ExamSubmission): Promise<ExamResult>;
   getGanttCtx(userId: number): Promise<GanttData | undefined>;
   saveGanttCtx(userId: number, data: GanttData): Promise<void>;
 }
@@ -53,6 +63,11 @@ export class MemStorage implements IStorage {
     this.initializeSections();
     this.initializeExams();
   }
+
+  // Basic implementation to satisfy interface - not fully user-specific in MemStorage
+  async getUser(id: number): Promise<User | undefined> { return undefined; }
+  async getUserByUsername(username: string): Promise<User | undefined> { return undefined; }
+  async createUser(user: InsertUser): Promise<User> { throw new Error("Not implemented in MemStorage"); }
 
   private initializeModules() {
     const initialModules: Module[] = [
@@ -264,135 +279,75 @@ Duración estimada: 8 horas de estudio`,
   }
 
   private initializeExams() {
-    // Examen de la sección sec-1-1 (Evaluación Diagnóstico del Módulo 1)
-    const exam1: Exam = {
-      id: "exam-sec-1-1",
-      sectionId: "sec-1-1",
-      title: "Examen Diagnóstico",
-      description: "Preguntas y opciones importadas desde EXAMEN DIAGNÓSTICO.xlsx",
-    };
-    this.exams.set(exam1.id, exam1);
+    // Populate Exams
+    seededExams.forEach((examData) => {
+      const exam: Exam = {
+        id: examData.id,
+        sectionId: examData.sectionId,
+        title: examData.title,
+        description: examData.description
+      };
+      this.exams.set(exam.id, exam);
+    });
 
-    // Cargar preguntas del SQL - primeras 10 preguntas como ejemplo
-    const questionsData = [
-      {
-        id: "exam-sec-1-1-q001", number: 1, text: "¿Cómo se define el método de Tilt-Up?", options: [
-          { id: "exam-sec-1-1-q001-A", label: "A", text: "Como una técnica de construcción metálica prefabricada.", correct: false },
-          { id: "exam-sec-1-1-q001-B", label: "B", text: "Como una técnica para colar elementos de concreto verticalmente.", correct: false },
-          { id: "exam-sec-1-1-q001-C", label: "C", text: "Como una técnica de ensamblaje de paneles transportados por carretera.", correct: false },
-          { id: "exam-sec-1-1-q001-D", label: "D", text: "Como una técnica para colar elementos de concreto horizontalmente en el sitio y luego inclinarlos a su posición final.", correct: true },
-        ]
-      },
-      {
-        id: "exam-sec-1-1-q002", number: 2, text: "¿Cuál de las siguientes es una característica de los paneles de Tilt-Up?", options: [
-          { id: "exam-sec-1-1-q002-A", label: "A", text: "No transfieren las cargas a la cimentación.", correct: false },
-          { id: "exam-sec-1-1-q002-B", label: "B", text: "Se construyen antes del diafragma de construcción estructural.", correct: false },
-          { id: "exam-sec-1-1-q002-C", label: "C", text: "Generalmente se manipulan múltiples veces antes de su instalación.", correct: false },
-          { id: "exam-sec-1-1-q002-D", label: "D", text: "Son de tamaño y peso que sólo permiten su construcción en el sitio.", correct: true },
-        ]
-      },
-      {
-        id: "exam-sec-1-1-q003", number: 3, text: "La____________ y__________ son ventajas del método Tilt-Up.", options: [
-          { id: "exam-sec-1-1-q003-A", label: "A", text: "Sustentabilidad y flexibilidad", correct: true },
-          { id: "exam-sec-1-1-q003-B", label: "B", text: "Resistencia al fuego y paisajismo", correct: false },
-          { id: "exam-sec-1-1-q003-C", label: "C", text: "Sustentabilidad y paisajismo", correct: false },
-          { id: "exam-sec-1-1-q003-D", label: "D", text: "Resistencia la fuego y flexibilidad", correct: false },
-        ]
-      },
-      {
-        id: "exam-sec-1-1-q004", number: 4, text: "Supera cualquier otra opción que ofrecen mampostería y madera", options: [
-          { id: "exam-sec-1-1-q004-A", label: "A", text: "VERDADERO", correct: true },
-          { id: "exam-sec-1-1-q004-B", label: "B", text: "FALSO", correct: false },
-        ]
-      },
-      {
-        id: "exam-sec-1-1-q005", number: 5, text: "El mayor porcentaje del uso de este método constructivo se encuentra en el sector industrial", options: [
-          { id: "exam-sec-1-1-q005-A", label: "A", text: "VERDADERO", correct: true },
-          { id: "exam-sec-1-1-q005-B", label: "B", text: "FALSO", correct: false },
-        ]
-      },
-    ];
-
-    questionsData.forEach((qData) => {
+    // Populate Questions
+    seededQuestions.forEach((qData) => {
       const question: ExamQuestion = {
         id: qData.id,
-        examId: exam1.id,
-        questionNumber: qData.number,
-        questionText: qData.text,
+        examId: qData.examId,
+        questionNumber: qData.questionNumber,
+        questionText: qData.questionText
       };
       this.examQuestions.set(question.id, question);
+    });
 
-      qData.options.forEach((opt) => {
-        const option: ExamQuestionOption = {
-          id: opt.id,
-          questionId: question.id,
-          optionLabel: opt.label,
-          optionText: opt.text,
-          isCorrect: opt.correct,
-        };
-        this.examQuestionOptions.set(option.id, option);
-      });
+    // Populate Options
+    seededOptions.forEach((oData) => {
+      const option: ExamQuestionOption = {
+        id: oData.id,
+        questionId: oData.questionId,
+        isCorrect: oData.isCorrect,
+        optionLabel: oData.optionLabel,
+        optionText: oData.optionText
+      };
+      this.examQuestionOptions.set(option.id, option);
     });
   }
 
-  async getAllModules(): Promise<Module[]> {
+  async getAllModules(userId?: number): Promise<Module[]> {
     return Array.from(this.modules.values()).sort((a, b) => a.number - b.number);
   }
 
-  async getModuleById(id: string): Promise<Module | undefined> {
+  async getModuleById(id: string, userId?: number): Promise<Module | undefined> {
     return this.modules.get(id);
   }
 
-  async updateModuleProgress(id: string, data: UpdateModuleProgress): Promise<Module | undefined> {
-    const module = this.modules.get(id);
-    if (!module) {
-      return undefined;
-    }
-
-    const updatedModule: Module = {
-      ...module,
-      progress: data.progress,
-    };
-
-    this.modules.set(id, updatedModule);
+  async updateModuleProgress(userId: number, moduleId: string, data: UpdateModuleProgress): Promise<Module | undefined> {
+    const module = this.modules.get(moduleId);
+    if (!module) return undefined;
+    const updatedModule = { ...module, progress: data.progress };
+    this.modules.set(moduleId, updatedModule);
     return updatedModule;
   }
 
-  async markModuleComplete(id: string, data: MarkModuleComplete): Promise<Module | undefined> {
-    const module = this.modules.get(id);
-    if (!module) {
-      return undefined;
-    }
-
-    const updatedModule: Module = {
-      ...module,
-      completed: data.completed,
-      progress: data.completed ? 100 : module.progress,
-    };
-
-    this.modules.set(id, updatedModule);
+  async markModuleComplete(userId: number, moduleId: string, data: MarkModuleComplete): Promise<Module | undefined> {
+    const module = this.modules.get(moduleId);
+    if (!module) return undefined;
+    const updatedModule = { ...module, completed: data.completed, progress: data.completed ? 100 : module.progress };
+    this.modules.set(moduleId, updatedModule);
     return updatedModule;
   }
 
-  async getSectionsByModuleId(moduleId: string): Promise<Section[]> {
-    return Array.from(this.sections.values())
-      .filter((s) => s.moduleId === moduleId)
-      .sort((a, b) => a.order - b.order);
+  async getSectionsByModuleId(moduleId: string, userId?: number): Promise<Section[]> {
+    return Array.from(this.sections.values()).filter(s => s.moduleId === moduleId).sort((a, b) => a.order - b.order);
   }
 
-  async markSectionComplete(sectionId: string): Promise<Section | undefined> {
+  async markSectionComplete(userId: number, sectionId: string): Promise<Section | undefined> {
     const section = this.sections.get(sectionId);
-    if (!section) {
-      return undefined;
-    }
-
-    const updatedSection: Section = {
-      ...section,
-      completed: true,
-    };
-
-    this.sections.set(sectionId, updatedSection);
-    return updatedSection;
+    if (!section) return undefined;
+    const updated = { ...section, completed: true };
+    this.sections.set(sectionId, updated);
+    return updated;
   }
 
   async getExamBySectionId(sectionId: string): Promise<ExamWithQuestions | undefined> {
@@ -403,12 +358,26 @@ Duración estimada: 8 horas de estudio`,
     }
 
     // Obtener todas las preguntas del examen
-    const questions = Array.from(this.examQuestions.values())
-      .filter(q => q.examId === exam.id)
-      .sort((a, b) => a.questionNumber - b.questionNumber);
+    const allQuestions = Array.from(this.examQuestions.values())
+      .filter(q => q.examId === exam.id);
+
+    // Seleccionar 30 preguntas aleatorias (o todas si hay menos de 30)
+    // Fisher-Yates Shuffle para aleatoriedad de alta calidad
+    const shuffled = [...allQuestions];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    // Tomar las primeras 30
+    const selectedQuestions = shuffled.slice(0, 30);
+
+    // Opcional: Reordenar por questionNumber original si se desea mantener algo de orden, 
+    // pero usualmente en exámenes aleatorios el orden también es aleatorio.
+    // Lo dejaremos en orden aleatorio.
 
     // Para cada pregunta, obtener sus opciones
-    const questionsWithOptions = questions.map(question => {
+    const questionsWithOptions = selectedQuestions.map(question => {
       const options = Array.from(this.examQuestionOptions.values())
         .filter(o => o.questionId === question.id)
         .sort((a, b) => a.optionLabel.localeCompare(b.optionLabel));
@@ -421,11 +390,12 @@ Duración estimada: 8 horas de estudio`,
 
     return {
       ...exam,
+      attemptId: Date.now().toString(), // Identificador único para este intento generado
       questions: questionsWithOptions,
     };
   }
 
-  async submitExam(examId: string, submission: ExamSubmission): Promise<ExamResult> {
+  async submitExam(userId: number, examId: string, submission: ExamSubmission): Promise<ExamResult> {
     const exam = this.exams.get(examId);
     if (!exam) {
       throw new Error("Examen no encontrado");
@@ -483,49 +453,226 @@ Duración estimada: 8 horas de estudio`,
   }
 }
 
+import { db } from "./db";
+import { asc } from "drizzle-orm";
+
 export class DbStorage implements IStorage {
-  // TODO: Importar y configurar db cuando se conecte a la base de datos
-  async getAllModules(): Promise<Module[]> {
-    throw new Error("Método no implementado para DbStorage");
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
-  async getModuleById(id: string): Promise<Module | undefined> {
-    throw new Error("Método no implementado para DbStorage");
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
-  async updateModuleProgress(id: string, data: UpdateModuleProgress): Promise<Module | undefined> {
-    throw new Error("Método no implementado para DbStorage");
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [result] = await db.insert(users).values(insertUser);
+    const [user] = await db.select().from(users).where(eq(users.id, result.insertId));
+    return user!;
   }
 
-  async markModuleComplete(id: string, data: MarkModuleComplete): Promise<Module | undefined> {
-    throw new Error("Método no implementado para DbStorage");
+  async getAllModules(userId?: number): Promise<Module[]> {
+    const allModules = await db.select().from(modules).orderBy(modules.number);
+
+    if (!userId) {
+      return allModules;
+    }
+
+    const progressList = await db.select().from(moduleProgress).where(eq(moduleProgress.userId, userId));
+
+    return allModules.map(m => {
+      const p = progressList.find(mq => mq.moduleId === m.id);
+      return {
+        ...m,
+        progress: p ? p.progress : 0,
+        completed: p ? p.completed : false
+      };
+    });
   }
 
-  async getSectionsByModuleId(moduleId: string): Promise<Section[]> {
-    throw new Error("Método no implementado para DbStorage");
+  async getModuleById(id: string, userId?: number): Promise<Module | undefined> {
+    const [module] = await db.select().from(modules).where(eq(modules.id, id));
+    if (!module) return undefined;
+
+    if (userId) {
+      const [p] = await db.select().from(moduleProgress).where(and(eq(moduleProgress.userId, userId), eq(moduleProgress.moduleId, id)));
+      if (p) {
+        return { ...module, progress: p.progress, completed: p.completed };
+      }
+    }
+    return module;
   }
 
-  async markSectionComplete(sectionId: string): Promise<Section | undefined> {
-    throw new Error("Método no implementado para DbStorage");
+  async updateModuleProgress(userId: number, moduleId: string, data: UpdateModuleProgress): Promise<Module | undefined> {
+    const [existing] = await db.select().from(moduleProgress).where(and(eq(moduleProgress.userId, userId), eq(moduleProgress.moduleId, moduleId)));
+
+    if (existing) {
+      await db.update(moduleProgress)
+        .set({ progress: data.progress, updatedAt: new Date() })
+        .where(eq(moduleProgress.id, existing.id));
+    } else {
+      await db.insert(moduleProgress).values({
+        userId,
+        moduleId,
+        progress: data.progress,
+        completed: false
+      });
+    }
+
+    return this.getModuleById(moduleId, userId);
+  }
+
+  async markModuleComplete(userId: number, moduleId: string, data: MarkModuleComplete): Promise<Module | undefined> {
+    const [existing] = await db.select().from(moduleProgress).where(and(eq(moduleProgress.userId, userId), eq(moduleProgress.moduleId, moduleId)));
+
+    // Calculate new progress: if completed=true -> 100, else keep existing or 0
+    const progress = data.completed ? 100 : (existing ? existing.progress : 0);
+
+    if (existing) {
+      await db.update(moduleProgress)
+        .set({ completed: data.completed, progress, updatedAt: new Date() })
+        .where(eq(moduleProgress.id, existing.id));
+    } else {
+      await db.insert(moduleProgress).values({
+        userId,
+        moduleId,
+        completed: data.completed,
+        progress
+      });
+    }
+    return this.getModuleById(moduleId, userId);
+  }
+
+  async getSectionsByModuleId(moduleId: string, userId?: number): Promise<Section[]> {
+    const moduleSections = await db.select().from(sections)
+      .where(eq(sections.moduleId, moduleId))
+      .orderBy(sections.order);
+
+    if (!userId) return moduleSections;
+
+    const progressList = await db.select().from(sectionProgress).where(eq(sectionProgress.userId, userId));
+
+    return moduleSections.map(s => {
+      const p = progressList.find(sp => sp.sectionId === s.id);
+      return {
+        ...s,
+        completed: p ? p.completed : false
+      };
+    });
+  }
+
+  async markSectionComplete(userId: number, sectionId: string): Promise<Section | undefined> {
+    const [existing] = await db.select().from(sectionProgress).where(and(eq(sectionProgress.userId, userId), eq(sectionProgress.sectionId, sectionId)));
+
+    if (existing) {
+      await db.update(sectionProgress)
+        .set({ completed: true, updatedAt: new Date() })
+        .where(eq(sectionProgress.id, existing.id));
+    } else {
+      await db.insert(sectionProgress).values({
+        userId,
+        sectionId,
+        completed: true
+      });
+    }
+
+    // Return the section (locally updated to true)
+    const [section] = await db.select().from(sections).where(eq(sections.id, sectionId));
+    return section ? { ...section, completed: true } : undefined;
   }
 
   async getExamBySectionId(sectionId: string): Promise<ExamWithQuestions | undefined> {
-    // TODO: Implementar con Drizzle ORM cuando se conecte a la DB
-    throw new Error("Método no implementado para DbStorage");
+    // 1. Obtener el examen
+    const examList = await db.select().from(exams).where(eq(exams.sectionId, sectionId));
+    const exam = examList[0];
+    if (!exam) return undefined;
+
+    // 2. Obtener preguntas
+    const questions = await db.select().from(examQuestions).where(eq(examQuestions.examId, exam.id));
+
+    // 3. Obtener opciones para todas las preguntas
+    const allOptions = await db.select().from(examQuestionOptions);
+
+    // 4. Armar la estructura
+    const questionsWithOpts = questions.map(q => {
+      const opts = allOptions.filter(o => o.questionId === q.id);
+      return { ...q, options: opts };
+    });
+
+    // 5. Randomizar si es necesario (copiado de MemStorage logic)
+    const shuffled = [...questionsWithOpts];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    const selectedQuestions = shuffled.slice(0, 30);
+
+    return {
+      ...exam,
+      attemptId: Date.now().toString(),
+      questions: selectedQuestions
+    };
   }
 
-  async submitExam(examId: string, submission: ExamSubmission): Promise<ExamResult> {
-    // TODO: Implementar con Drizzle ORM cuando se conecte a la DB
-    throw new Error("Método no implementado para DbStorage");
+  async submitExam(userId: number, examId: string, submission: ExamSubmission): Promise<ExamResult> {
+    // Nota: La lógica de calificación es idéntica a MemStorage, 
+    // pero consultando los datos de la DB.
+
+    const examList = await db.select().from(exams).where(eq(exams.id, examId));
+    const exam = examList[0];
+    if (!exam) throw new Error("Examen no encontrado");
+
+    const questions = await db.select().from(examQuestions).where(eq(examQuestions.examId, examId));
+    const allOptions = await db.select().from(examQuestionOptions); // Podríamos filtrar por questionIds
+
+    let correctAnswers = 0;
+    const answers = [];
+
+    for (const question of questions) {
+      const selectedOptionId = submission.answers[question.id];
+      if (!selectedOptionId) continue;
+
+      const correctOption = allOptions.find(o => o.questionId === question.id && o.isCorrect);
+      const isCorrect = selectedOptionId === correctOption?.id;
+
+      if (isCorrect) correctAnswers++;
+
+      answers.push({
+        questionId: question.id,
+        selectedOptionId,
+        correctOptionId: correctOption?.id || "",
+        isCorrect,
+      });
+    }
+
+    const totalQuestions = questions.length;
+    const score = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+    const passed = score >= 70;
+
+    // If passed, mark section as complete for user
+    if (passed) {
+      await this.markSectionComplete(userId, exam.sectionId);
+    }
+
+    return {
+      totalQuestions,
+      correctAnswers,
+      score,
+      passed,
+      answers,
+    };
   }
 
   async getGanttCtx(userId: number): Promise<GanttData | undefined> {
-    throw new Error("Método no implementado para DbStorage");
+    // Implementación pendiente
+    return undefined;
   }
 
   async saveGanttCtx(userId: number, data: GanttData): Promise<void> {
-    throw new Error("Método no implementado para DbStorage");
+    // Implementación pendiente
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DbStorage();

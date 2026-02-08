@@ -4,18 +4,20 @@ import { storage } from "./storage";
 import { updateModuleProgressSchema, markModuleCompleteSchema, ganttSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.get("/api/modules", async (req, res) => {
+  app.get("/api/modules.php", async (req, res) => {
+    const userId = parseInt(req.headers["x-user-id"] as string) || 0;
     try {
-      const modules = await storage.getAllModules();
+      const modules = await storage.getAllModules(userId);
       res.json(modules);
     } catch (error) {
       res.status(500).json({ error: "Error al obtener los módulos" });
     }
   });
 
-  app.get("/api/modules/:id", async (req, res) => {
+  app.get("/api/modules.php/:id", async (req, res) => {
+    const userId = parseInt(req.headers["x-user-id"] as string) || 0;
     try {
-      const module = await storage.getModuleById(req.params.id);
+      const module = await storage.getModuleById(req.params.id, userId);
       if (!module) {
         return res.status(404).json({ error: "Módulo no encontrado" });
       }
@@ -25,14 +27,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/modules/:id/progress", async (req, res) => {
+  app.patch("/api/modules.php/:id/progress", async (req, res) => {
+    const userId = parseInt(req.headers["x-user-id"] as string) || 0;
+    // Permitir userId=0 solo para pruebas o manejo fallback, en prod debería requerir usuario
+    if (userId === 0) return res.status(401).json({ error: "No autenticado (User ID missing)" });
+
     try {
       const result = updateModuleProgressSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: "Datos inválidos", details: result.error });
       }
 
-      const module = await storage.updateModuleProgress(req.params.id, result.data);
+      const module = await storage.updateModuleProgress(userId, req.params.id, result.data);
       if (!module) {
         return res.status(404).json({ error: "Módulo no encontrado" });
       }
@@ -43,14 +49,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/modules/:id/complete", async (req, res) => {
+  app.post("/api/modules.php/:id/complete", async (req, res) => {
+    const userId = parseInt(req.headers["x-user-id"] as string) || 0;
+    if (userId === 0) return res.status(401).json({ error: "No autenticado (User ID missing)" });
+
     try {
       const result = markModuleCompleteSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: "Datos inválidos", details: result.error });
       }
 
-      const module = await storage.markModuleComplete(req.params.id, result.data);
+      const module = await storage.markModuleComplete(userId, req.params.id, result.data);
       if (!module) {
         return res.status(404).json({ error: "Módulo no encontrado" });
       }
@@ -61,18 +70,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/modules/:id/sections", async (req, res) => {
+  app.get("/api/modules.php/:id/sections", async (req, res) => {
+    const userId = parseInt(req.headers["x-user-id"] as string) || 0;
     try {
-      const sections = await storage.getSectionsByModuleId(req.params.id);
+      const sections = await storage.getSectionsByModuleId(req.params.id, userId);
       res.json(sections);
     } catch (error) {
       res.status(500).json({ error: "Error al obtener las secciones" });
     }
   });
 
-  app.post("/api/sections/:id/complete", async (req, res) => {
+  app.post("/api/sections.php/:id/complete", async (req, res) => {
+    const userId = parseInt(req.headers["x-user-id"] as string) || 0;
+    if (userId === 0) return res.status(401).json({ error: "No autenticado (User ID missing)" });
+
     try {
-      const section = await storage.markSectionComplete(req.params.id);
+      const section = await storage.markSectionComplete(userId, req.params.id);
       if (!section) {
         return res.status(404).json({ error: "Sección no encontrada" });
       }
@@ -83,7 +96,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rutas de exámenes
-  app.get("/api/sections/:sectionId/exam", async (req, res) => {
+  app.get("/api/sections.php/:sectionId/exam", async (req, res) => {
     try {
       const exam = await storage.getExamBySectionId(req.params.sectionId);
       if (!exam) {
@@ -95,9 +108,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/exams/:examId/submit", async (req, res) => {
+  app.post("/api/exams.php/:examId/submit", async (req, res) => {
+    const userId = parseInt(req.headers["x-user-id"] as string) || 0;
+    if (userId === 0) return res.status(401).json({ error: "No autenticado (User ID missing)" });
+
     try {
-      const result = await storage.submitExam(req.params.examId, req.body);
+      const result = await storage.submitExam(userId, req.params.examId, req.body);
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Error al enviar el examen" });
@@ -105,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rutas de Gantt
-  app.get("/api/gantt/:userId", async (req, res) => {
+  app.get("/api/gantt.php/:userId", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       if (isNaN(userId)) {
@@ -120,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/gantt/:userId", async (req, res) => {
+  app.post("/api/gantt.php/:userId", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       if (isNaN(userId)) {

@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { GraduationCap, LogOut } from "lucide-react";
+import { GraduationCap, LogOut, Shield } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -29,6 +29,14 @@ export function Header() {
               <span className="text-border">•</span>
               <span>Tilt-Up</span>
             </div>
+            {user?.role === "admin" && (
+              <Link href="/admin">
+                <Button variant="ghost" size="sm" className="mr-2 text-muted-foreground hover:text-primary">
+                  <Shield className="h-5 w-5 mr-2" />
+                  Admin
+                </Button>
+              </Link>
+            )}
             {user && (
               <Button variant="ghost" size="icon" onClick={() => logout()} title="Cerrar Sesión">
                 <LogOut className="h-5 w-5 text-muted-foreground hover:text-primary" />

@@ -2,25 +2,27 @@ import { useState, useEffect, useRef } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Download, Maximize, Minimize } from "lucide-react";
-import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-
-// Set up worker with local asset
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+import { ChevronLeft, ChevronRight, Maximize, Minimize } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+// Set up worker with local asset (copied to public/pdf.worker.min.js)
+// Using standard JS worker instead of MJS to avoid MIME type issues
+pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
 
 
 interface PDFViewerProps {
   pdfUrl: string;
   title?: string;
+  onFinish?: () => void;
 }
 
-export function PDFViewer({ pdfUrl, title }: PDFViewerProps) {
+export function PDFViewer({ pdfUrl, title, onFinish }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(window.innerWidth < 640 ? 0.6 : 1.5);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const { user } = useAuth();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfDocRef = useRef<any>(null);
@@ -117,6 +119,9 @@ export function PDFViewer({ pdfUrl, title }: PDFViewerProps) {
   const goToNextPage = () => {
     if (numPages && pageNumber < numPages) {
       setPageNumber(pageNumber + 1);
+      if (pageNumber + 1 === numPages) {
+        onFinish?.();
+      }
     }
   };
 
@@ -136,6 +141,21 @@ export function PDFViewer({ pdfUrl, title }: PDFViewerProps) {
 
       <div className={`flex flex-col sm:flex-row flex-wrap gap-2 justify-between items-center bg-muted/30 p-2 rounded-lg ${isFullscreen ? 'mb-2' : 'mb-4'}`}>
         <div className="flex gap-1 sm:gap-2 items-center w-full sm:w-auto justify-center sm:justify-start">
+          {user?.role === 'admin' && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => {
+                if (numPages) {
+                  setPageNumber(numPages);
+                  onFinish?.();
+                }
+              }}
+              className="bg-yellow-600 hover:bg-yellow-700 text-white mr-2"
+            >
+              Saltar al final
+            </Button>
+          )}
           <Button
             onClick={goToPreviousPage}
             disabled={pageNumber === 1}
@@ -180,12 +200,7 @@ export function PDFViewer({ pdfUrl, title }: PDFViewerProps) {
             {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
           </Button>
 
-          <a href={pdfUrl} download className="inline-block ml-1 sm:ml-2">
-            <Button variant="default" size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
-              <Download className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Descargar</span>
-            </Button>
-          </a>
+
         </div>
       </div>
 

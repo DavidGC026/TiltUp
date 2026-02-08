@@ -8,6 +8,7 @@ import Home from "@/pages/Home";
 import ModuleDetail from "@/pages/ModuleDetail";
 import PDFViewPage from "@/pages/PDFViewPage";
 import ExamPage from "@/pages/ExamPage";
+import AdminDashboard from "@/pages/AdminDashboard";
 import LoginPage from "@/pages/LoginPage";
 import NotFound from "@/pages/not-found";
 
@@ -47,6 +48,7 @@ function AppRouter() {
       <Route path="/modulo/:id" component={() => <ProtectedRoute component={ModuleDetail} />} />
       <Route path="/pdf" component={() => <ProtectedRoute component={PDFViewPage} />} />
       <Route path="/examen/:sectionId" component={() => <ProtectedRoute component={ExamPage} />} />
+      <Route path="/admin" component={() => <ProtectedRoute component={AdminDashboard} />} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -55,7 +57,7 @@ function AppRouter() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router base="/TiltUp">
+      <Router base={import.meta.env.BASE_URL}>
         <AuthProvider>
           <TooltipProvider>
             <Toaster />
@@ -65,7 +67,10 @@ function App() {
               <div className="fixed inset-0 z-[-1]">
                 <div
                   className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                  style={{ backgroundImage: "url('/TiltUp/home-bg.png')" }}
+                  style={{
+                    // Ensure we don't end up with double slashes if BASE_URL ends with /
+                    backgroundImage: `url('${import.meta.env.BASE_URL.replace(/\/$/, '')}/home-bg.png')`
+                  }}
                 />
                 <div className="absolute inset-0 bg-[#0073a5]/80 mix-blend-multiply" />
               </div>

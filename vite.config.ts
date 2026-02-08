@@ -8,7 +8,7 @@ import { execSync } from "child_process";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  base: '/TiltUp/',
+  base: process.env.VITE_BASE_PATH || '/',
   plugins: [
     react(),
     runtimeErrorOverlay(),
@@ -33,7 +33,7 @@ export default defineConfig({
   },
   root: path.resolve(__dirname, "client"),
   build: {
-    outDir: path.resolve(__dirname, "dist/public"),
+    outDir: path.resolve(__dirname, "dist"),
     emptyOutDir: true,
     rollupOptions: {
       plugins: [
@@ -41,7 +41,7 @@ export default defineConfig({
           name: 'copy-cmaps',
           writeBundle() {
             try {
-              const outDir = path.resolve(__dirname, "dist/public");
+              const outDir = path.resolve(__dirname, "dist");
               const cmapsSrc = path.resolve(__dirname, "node_modules/pdfjs-dist/cmaps");
               execSync(`mkdir -p "${outDir}/cmaps" && cp "${cmapsSrc}"/*.bcmap "${outDir}/cmaps/" 2>/dev/null || true`);
             } catch (e) {

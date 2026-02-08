@@ -48,7 +48,7 @@ export default function LoginPage() {
                 <div
                     className="absolute inset-0 bg-cover bg-center transition-transform duration-10000 hover:scale-105"
                     style={{
-                        backgroundImage: "url('/TiltUp/login-bg.png')",
+                        backgroundImage: "url('/login-bg.png')",
                         opacity: 0.6
                     }}
                 />

@@ -1,27 +1,26 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { mysqlTable, mysqlSchema, AnyMySqlColumn, serial, text, varchar, int, boolean, timestamp, json } from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const modules = pgTable("modules", {
-  id: varchar("id").primaryKey(),
-  number: integer("number").notNull(),
-  title: text("title").notNull(),
+export const modules = mysqlTable("modules", {
+  id: varchar("id", { length: 50 }).primaryKey(),
+  number: int("number").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
   description: text("description").notNull(),
   content: text("content").notNull(),
-  imageUrl: text("image_url").notNull(),
-  progress: integer("progress").notNull().default(0),
+  imageUrl: varchar("image_url", { length: 255 }).notNull(),
+  progress: int("progress").notNull().default(0),
   completed: boolean("completed").notNull().default(false),
 });
 
-export const sections = pgTable("sections", {
-  id: varchar("id").primaryKey(),
-  moduleId: varchar("module_id").notNull().references(() => modules.id),
-  type: varchar("type", { enum: ["diagnostic", "presentation", "infographic", "data", "evaluation"] }).notNull(),
-  title: text("title").notNull(),
+export const sections = mysqlTable("sections", {
+  id: varchar("id", { length: 50 }).primaryKey(),
+  moduleId: varchar("module_id", { length: 50 }).notNull().references(() => modules.id),
+  type: varchar("type", { length: 50, enum: ["diagnostic", "presentation", "infographic", "data", "evaluation"] }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
   content: text("content").notNull(),
-  pdfUrl: text("pdf_url"),
-  order: integer("order").notNull(),
+  pdfUrl: varchar("pdf_url", { length: 255 }),
+  order: int("order").notNull(),
   completed: boolean("completed").notNull().default(false),
 });
 
@@ -46,21 +45,21 @@ export type UpdateModuleProgress = z.infer<typeof updateModuleProgressSchema>;
 export type MarkModuleComplete = z.infer<typeof markModuleCompleteSchema>;
 
 // Tablas de exámenes
-export const exams = pgTable("exams", {
+export const exams = mysqlTable("exams", {
   id: varchar("id", { length: 50 }).primaryKey(),
   sectionId: varchar("section_id", { length: 50 }).notNull().references(() => sections.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
 });
 
-export const examQuestions = pgTable("exam_questions", {
+export const examQuestions = mysqlTable("exam_questions", {
   id: varchar("id", { length: 80 }).primaryKey(),
   examId: varchar("exam_id", { length: 50 }).notNull().references(() => exams.id, { onDelete: "cascade" }),
-  questionNumber: integer("question_number").notNull(),
+  questionNumber: int("question_number").notNull(),
   questionText: text("question_text").notNull(),
 });
 
-export const examQuestionOptions = pgTable("exam_question_options", {
+export const examQuestionOptions = mysqlTable("exam_question_options", {
   id: varchar("id", { length: 90 }).primaryKey(),
   questionId: varchar("question_id", { length: 80 }).notNull().references(() => examQuestions.id, { onDelete: "cascade" }),
   optionLabel: varchar("option_label", { length: 1 }).notNull(),
@@ -122,3 +121,32 @@ export const ganttSchema = z.object({
 });
 
 export type GanttData = z.infer<typeof ganttSchema>;
+
+export const users = mysqlTable("users", {
+  id: int("id").primaryKey().autoincrement(),
+  username: varchar("username", { length: 50 }).notNull().unique(),
+  password: varchar("password", { length: 255 }).notNull(),
+  role: varchar("role", { length: 20, enum: ["admin", "user"] }).default("user"),
+});
+
+export const moduleProgress = mysqlTable("module_progress", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  moduleId: varchar("module_id", { length: 50 }).notNull().references(() => modules.id, { onDelete: "cascade" }),
+  progress: int("progress").notNull().default(0),
+  completed: boolean("completed").notNull().default(false),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+export const sectionProgress = mysqlTable("section_progress", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sectionId: varchar("section_id", { length: 50 }).notNull().references(() => sections.id, { onDelete: "cascade" }),
+  completed: boolean("completed").notNull().default(false),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;
+export type ModuleProgress = typeof moduleProgress.$inferSelect;
+export type SectionProgress = typeof sectionProgress.$inferSelect;

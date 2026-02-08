@@ -1,9 +1,5 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { db, poolConnection } from "./db";
 import { modules } from "@shared/schema";
-
-const sql = neon(process.env.DATABASE_URL!);
-const db = drizzle(sql);
 
 async function seed() {
   console.log("🌱 Seeding database...");
@@ -154,7 +150,7 @@ Duración estimada: 8 horas de estudio`,
 
   try {
     const existingModules = await db.select().from(modules);
-    
+
     if (existingModules.length > 0) {
       console.log(`✅ Database already has ${existingModules.length} modules. Skipping seed.`);
       return;
@@ -169,11 +165,13 @@ Duración estimada: 8 horas de estudio`,
 }
 
 seed()
-  .then(() => {
+  .then(async () => {
     console.log("🎉 Seed completed!");
+    await poolConnection.end();
     process.exit(0);
   })
-  .catch((error) => {
+  .catch(async (error) => {
     console.error("💥 Seed failed:", error);
+    await poolConnection.end();
     process.exit(1);
   });
