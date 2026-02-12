@@ -19,8 +19,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 
 interface ExamResultDetail {
     questionId: string;
+    questionText: string;
     selectedOptionId: string;
+    selectedOptionText: string;
     correctOptionId: string;
+    correctOptionText: string;
     isCorrect: boolean;
 }
 
@@ -171,10 +174,10 @@ function DetailsDialog({ result }: { result: AdminResult }) {
                                     <XCircle className="h-4 w-4 text-red-500 mt-0.5" />
                                 )}
                                 <div>
-                                    <p className="font-medium">Pregunta ID: {detail.questionId}</p>
-                                    <p className="text-muted-foreground">Seleccionada: {detail.selectedOptionId}</p>
+                                    <p className="font-medium">{detail.questionText}</p>
+                                    <p className="text-muted-foreground">Seleccionada: {detail.selectedOptionText}</p>
                                     {!detail.isCorrect && (
-                                        <p className="text-green-600">Correcta: {detail.correctOptionId}</p>
+                                        <p className="text-green-600">Correcta: {detail.correctOptionText}</p>
                                     )}
                                 </div>
                             </div>
