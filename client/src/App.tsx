@@ -10,6 +10,7 @@ import PDFViewPage from "@/pages/PDFViewPage";
 import ExamPage from "@/pages/ExamPage";
 import AdminDashboard from "@/pages/AdminDashboard";
 import LoginPage from "@/pages/LoginPage";
+import BitacoraPage from "@/pages/BitacoraPage";
 import NotFound from "@/pages/not-found";
 
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -49,6 +50,7 @@ function AppRouter() {
       <Route path="/pdf" component={() => <ProtectedRoute component={PDFViewPage} />} />
       <Route path="/examen/:sectionId" component={() => <ProtectedRoute component={ExamPage} />} />
       <Route path="/admin" component={() => <ProtectedRoute component={AdminDashboard} />} />
+      <Route path="/bitacora" component={() => <ProtectedRoute component={BitacoraPage} />} />
       <Route component={NotFound} />
     </Switch>
   );

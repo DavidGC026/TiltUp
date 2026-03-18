@@ -21,13 +21,16 @@ switch ($endpoint) {
     case 'upload':
         include 'api/upload.php';
         break;
+    case 'generar_bitacora':
+        include 'api/generar_bitacora.php';
+        break;
     case '':
         json_response(['message' => 'TiltUp API v1.0', 'endpoints' => [
-            'GET /modules' => 'Get all modules',
-            'GET /modules/{id}' => 'Get specific module',
-            'GET /sections/{module_id}' => 'Get sections by module',
-            'POST /upload' => 'Upload files'
-        ]]);
+                'GET /modules' => 'Get all modules',
+                'GET /modules/{id}' => 'Get specific module',
+                'GET /sections/{module_id}' => 'Get sections by module',
+                'POST /upload' => 'Upload files'
+            ]]);
         break;
     default:
         http_response_code(404);
